@@ -1,103 +1,291 @@
-import Image from "next/image";
+// src/app/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import Camera from '@/components/Camera';
+import ResultsPanel from '@/components/ResultsPanel';
+import QueueManager from '@/components/QueueManager';
+import HistoryPanel from '@/components/HistoryPanel';
+import FileUpload from '@/components/FileUpload';
+import { CapturedImage, ProcessingQueue, HistoryItem } from '@/types';
+import { generateId } from '@/lib/utils';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [queue, setQueue] = useState<ProcessingQueue>({
+    items: [],
+    currentProcessingId: null,
+  });
+  const [completedResults, setCompletedResults] = useState<CapturedImage[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Load history on component mount
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  // Process queue
+  useEffect(() => {
+    processQueue();
+  }, [queue.items, queue.currentProcessingId]);
+
+  const loadHistory = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/history');
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const processQueue = async () => {
+    if (queue.currentProcessingId || queue.items.length === 0) {
+      return;
+    }
+
+    const nextItem = queue.items.find(item => item.status === 'pending');
+    if (!nextItem) {
+      return;
+    }
+
+    // Update status to processing
+    setQueue(prev => ({
+      ...prev,
+      currentProcessingId: nextItem.id,
+      items: prev.items.map(item =>
+        item.id === nextItem.id
+          ? { ...item, status: 'processing', processingStartTime: new Date() }
+          : item
+      ),
+    }));
+
+    try {
+      const startTime = Date.now();
+
+      // Send to API for processing
+      const response = await fetch('/api/process-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          imageData: nextItem.imageData,
+          capturedAt: nextItem.timestamp,
+        }),
+      });
+
+      const result = await response.json();
+      const processingTime = Date.now() - startTime;
+
+      if (response.ok && result.success) {
+        const completedItem: CapturedImage = {
+          ...nextItem,
+          status: 'completed',
+          result: result.data.result,
+          processingEndTime: new Date(),
+          processingTimeMs: processingTime,
+        };
+
+        // Move to completed results
+        setCompletedResults(prev => [completedItem, ...prev]);
+
+        // Remove from queue
+        setQueue(prev => ({
+          items: prev.items.filter(item => item.id !== nextItem.id),
+          currentProcessingId: null,
+        }));
+
+        // Reload history to include new result
+        await loadHistory();
+      } else {
+        // Handle error
+        setQueue(prev => ({
+          ...prev,
+          currentProcessingId: null,
+          items: prev.items.map(item =>
+            item.id === nextItem.id
+              ? { ...item, status: 'error', result: result.error || 'Processing failed' }
+              : item
+          ),
+        }));
+      }
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setQueue(prev => ({
+        ...prev,
+        currentProcessingId: null,
+        items: prev.items.map(item =>
+          item.id === nextItem.id
+            ? { ...item, status: 'error', result: 'Network error occurred' }
+            : item
+        ),
+      }));
+    }
+  };
+
+  const handleImageCaptured = (imageData: string) => {
+    const newImage: CapturedImage = {
+      id: generateId(),
+      imageData,
+      timestamp: new Date(),
+      status: 'pending',
+    };
+
+    setQueue(prev => ({
+      ...prev,
+      items: [...prev.items, newImage],
+    }));
+  };
+
+  const handleFileUploaded = (imageData: string) => {
+    handleImageCaptured(imageData);
+  };
+
+  const handleClearQueue = () => {
+    setQueue(prev => ({
+      ...prev,
+      items: prev.items.filter(item => item.status === 'processing'),
+    }));
+  };
+
+  const handleClearResults = () => {
+    setCompletedResults([]);
+  };
+
+  const toggleCamera = () => {
+    setIsCameraOn(prev => !prev);
+  };
+
+  const toggleHistory = () => {
+    setShowHistory(prev => !prev);
+    if (!showHistory) {
+      loadHistory();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Face Detection & Analysis
+            </h1>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={toggleHistory}
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${showHistory
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+              >
+                {showHistory ? 'Hide History' : 'Show History'}
+              </button>
+              <button
+                onClick={toggleCamera}
+                className={`px-4 py-2 rounded-md font-medium transition-colors ${isCameraOn
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+              >
+                {isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+              </button>
+            </div>
+          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {showHistory ? (
+          <HistoryPanel
+            history={history}
+            isLoading={isLoading}
+            onRefresh={loadHistory}
+          />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Panel - Results */}
+            <div className="space-y-6">
+              <ResultsPanel
+                results={completedResults}
+                onClear={handleClearResults}
+              />
+
+              <QueueManager
+                queue={queue}
+                onClear={handleClearQueue}
+              />
+            </div>
+
+            {/* Right Panel - Camera/Upload */}
+            <div className="space-y-6">
+              {isCameraOn ? (
+                <Camera
+                  onImageCaptured={handleImageCaptured}
+                  isActive={true}
+                />
+              ) : (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                    Camera is Off
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    Upload an image to analyze, or turn on the camera to capture faces.
+                    Queue processing will continue in the background.
+                  </p>
+                  <FileUpload onFileUploaded={handleFileUploaded} />
+                </div>
+              )}
+
+              {/* Status Information */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                  System Status
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Camera:</span>
+                    <span className={`font-medium ${isCameraOn ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                      {isCameraOn ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Queue Length:</span>
+                    <span className="font-medium text-blue-600">
+                      {queue.items.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Processing:</span>
+                    <span className={`font-medium ${queue.currentProcessingId ? 'text-yellow-600' : 'text-gray-400'
+                      }`}>
+                      {queue.currentProcessingId ? 'In Progress' : 'Idle'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Completed Results:</span>
+                    <span className="font-medium text-green-600">
+                      {completedResults.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
