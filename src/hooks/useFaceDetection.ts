@@ -8,6 +8,9 @@ interface UseFaceDetectionOptions {
     canvasWidth?: number;
     canvasHeight?: number;
     minDetectionConfidence?: number;
+    minFrontalConfidence?: number;
+    maxYawAngle?: number;
+    maxPitchAngle?: number;
     stabilityThreshold?: number;
     captureDelay?: number;
     onCapture?: (imageData: string) => void;
@@ -39,6 +42,9 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
         canvasWidth = 640,
         canvasHeight = 480,
         minDetectionConfidence = 0.7,
+        minFrontalConfidence = 0.6,
+        maxYawAngle = 25,
+        maxPitchAngle = 20,
         stabilityThreshold = 5000, // 5 seconds
         captureDelay = 5000,
         onCapture,
@@ -63,9 +69,12 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
 
     const config: FaceDetectionConfig = useMemo(() => ({
         minDetectionConfidence,
+        minFrontalConfidence,
+        maxYawAngle,
+        maxPitchAngle,
         stabilityThreshold,
         captureDelay,
-    }), [minDetectionConfidence, stabilityThreshold, captureDelay]);
+    }), [minDetectionConfidence, minFrontalConfidence, maxYawAngle, maxPitchAngle, stabilityThreshold, captureDelay]);
 
     const targetRegion = useMemo(() => createTargetRegion(canvasWidth, canvasHeight), [canvasWidth, canvasHeight]);
 
@@ -246,9 +255,16 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
         if (!managerRef.current || isCapturing) return;
 
         // Check if face is in target region
-        const faceInRegion = results.some(detection =>
-            managerRef.current?.isInTargetRegion(detection, targetRegion)
-        );
+        const faceInRegion = results.some(detection => {
+            // Simple check if face is in target region
+            const { bbox } = detection;
+            return (
+                bbox.x >= targetRegion.x &&
+                bbox.y >= targetRegion.y &&
+                bbox.x + bbox.width <= targetRegion.x + targetRegion.width &&
+                bbox.y + bbox.height <= targetRegion.y + targetRegion.height
+            );
+        });
 
         setFaceDetected(faceInRegion);
 

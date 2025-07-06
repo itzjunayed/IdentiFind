@@ -28,7 +28,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
-    const [detectionResults, setDetectionResults] = useState<FaceDetectionResult[]>([]);
     const [isInRestPeriod, setIsInRestPeriod] = useState(false);
     const [restCountdown, setRestCountdown] = useState<number | null>(null);
 
@@ -91,9 +90,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
             return; // STOP ALL PROCESSING during capture
         }
-
-        // NOW continue with normal detection ONLY if not in rest or capturing
-        setDetectionResults(results);
 
         if (!overlayCanvasRef.current) return;
 
@@ -387,7 +383,7 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             ctx.fillText(`Timer: ${elapsed}ms / 3000ms`, 15, canvas.height - 100);
         }
 
-    }, [isInRestPeriod, restCountdown, isCapturing, targetRegion.x, targetRegion.y, targetRegion.width, targetRegion.height, config.minDetectionConfidence, config.maxYawAngle, config.maxPitchAngle, onImageCaptured]);
+    }, [isInRestPeriod, isCapturing, targetRegion, config.minDetectionConfidence, config.maxYawAngle, config.maxPitchAngle, onImageCaptured]);
 
     const initializeCamera = useCallback(async () => {
         if (!videoRef.current || !canvasRef.current || !isActive) return;
@@ -596,7 +592,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
         setIsInitialized(false);
         faceStableTimeRef.current = null;
-        setDetectionResults([]);
         setIsInRestPeriod(false);
         setRestCountdown(null);
         setIsCapturing(false);

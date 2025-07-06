@@ -267,7 +267,6 @@ export class FaceDetectionManager {
         const nose = landmarks.getNose();
         const leftEye = landmarks.getLeftEye();
         const rightEye = landmarks.getRightEye();
-        const mouth = landmarks.getMouth();
 
         // Nose tip points
         const noseTip = nose[4]; // Bottom of nose

@@ -31,6 +31,31 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [modelsLoaded, setModelsLoaded] = useState(false);
 
+  // Load history function
+  const loadHistory = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await fetch('/api/history');
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Ensure data.data is an array
+        const historyArray = Array.isArray(data.data) ? data.data : [];
+        setHistory(historyArray);
+      } else {
+        setError(data.error || 'Failed to load history');
+        setHistory([]); // Set empty array on error
+      }
+    } catch (error) {
+      console.error('Error loading history:', error);
+      setError('Network error while loading history');
+      setHistory([]); // Set empty array on error
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Check if face-api.js models are loaded
   useEffect(() => {
     // Only run on client side
@@ -78,31 +103,7 @@ export default function Home() {
   // Load history on component mount
   useEffect(() => {
     loadHistory();
-  }, []);
-
-  const loadHistory = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await fetch('/api/history');
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Ensure data.data is an array
-        const historyArray = Array.isArray(data.data) ? data.data : [];
-        setHistory(historyArray);
-      } else {
-        setError(data.error || 'Failed to load history');
-        setHistory([]); // Set empty array on error
-      }
-    } catch (error) {
-      console.error('Error loading history:', error);
-      setError('Network error while loading history');
-      setHistory([]); // Set empty array on error
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  }, [loadHistory]);
 
   const processQueue = useCallback(async () => {
     if (queue.currentProcessingId || queue.items.length === 0) {
