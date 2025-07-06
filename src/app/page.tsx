@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Alert, Navbar, Nav } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Alert, Navbar, Nav } from 'react-bootstrap';
 import Camera from '@/components/Camera';
 import ResultsPanel from '@/components/ResultsPanel';
 import QueueManager from '@/components/QueueManager';
@@ -11,6 +11,12 @@ import HistoryPanel from '@/components/HistoryPanel';
 import FileUpload from '@/components/FileUpload';
 import { CapturedImage, ProcessingQueue, HistoryItem } from '@/types';
 import { generateId } from '@/lib/utils';
+
+// Type for window object with face-api extensions
+interface WindowWithFaceApi extends Window {
+  faceApiLoaded?: boolean;
+  faceApiError?: string | null;
+}
 
 export default function Home() {
   const [isCameraOn, setIsCameraOn] = useState(true);
@@ -31,7 +37,7 @@ export default function Home() {
     if (typeof window === 'undefined') return;
 
     const checkModels = () => {
-      const loaded = (window as any).faceApiLoaded === true;
+      const loaded = (window as WindowWithFaceApi).faceApiLoaded === true;
       setModelsLoaded(loaded);
     };
 
@@ -44,7 +50,7 @@ export default function Home() {
       setModelsLoaded(true);
     };
 
-    const handleModelError = (event: CustomEvent) => {
+    const handleModelError = (event: CustomEvent<string>) => {
       console.error('Models loading error:', event.detail);
       setError(event.detail || 'Failed to load AI models');
       setModelsLoaded(false);
@@ -55,7 +61,7 @@ export default function Home() {
 
     // Also check periodically if events don't fire
     const interval = setInterval(() => {
-      if (!(window as any).faceApiLoaded) {
+      if (!(window as WindowWithFaceApi).faceApiLoaded) {
         checkModels();
       } else {
         clearInterval(interval);
@@ -74,7 +80,7 @@ export default function Home() {
     loadHistory();
   }, []);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -96,7 +102,7 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const processQueue = useCallback(async () => {
     if (queue.currentProcessingId || queue.items.length === 0) {
@@ -181,7 +187,7 @@ export default function Home() {
         ),
       }));
     }
-  }, [queue.currentProcessingId, queue.items]);
+  }, [queue.currentProcessingId, queue.items, loadHistory]);
 
   // Process queue
   useEffect(() => {

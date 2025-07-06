@@ -90,50 +90,7 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
         fileInputRef.current?.click();
     };
 
-    const generateSampleImage = useCallback((label: string) => {
-        // Create a sample image using canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = 400;
-        canvas.height = 400;
-        const ctx = canvas.getContext('2d')!;
-
-        // Draw a simple sample "face"
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(0, 0, 400, 400);
-
-        // Face outline
-        ctx.fillStyle = '#ffc107';
-        ctx.beginPath();
-        ctx.arc(200, 200, 150, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // Eyes
-        ctx.fillStyle = '#212529';
-        ctx.beginPath();
-        ctx.arc(160, 170, 15, 0, 2 * Math.PI);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(240, 170, 15, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // Smile
-        ctx.strokeStyle = '#212529';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.arc(200, 220, 50, 0, Math.PI);
-        ctx.stroke();
-
-        // Add label
-        ctx.fillStyle = '#212529';
-        ctx.font = 'bold 20px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, 200, 350);
-
-        const imageData = canvas.toDataURL('image/jpeg', 0.8);
-        onFileUploaded(imageData);
-        setSuccess(`✅ Generated sample: ${label}`);
-        setTimeout(() => setSuccess(null), 3000);
-    }, [onFileUploaded]);
+    // Note: generateSampleImage function was removed as it was unused
 
     return (
         <div className="d-grid gap-3">

@@ -1,8 +1,55 @@
 // src/lib/face-detection.ts
 import { FaceDetectionResult, FaceDetectionConfig } from '@/types';
 
-// Dynamic import type for face-api.js
-type FaceAPI = typeof import('face-api.js');
+// Type for face-api.js imports
+interface FaceAPI {
+    nets: {
+        tinyFaceDetector: {
+            loadFromUri: (uri: string) => Promise<void>;
+        };
+        faceLandmark68Net: {
+            loadFromUri: (uri: string) => Promise<void>;
+        };
+        faceRecognitionNet: {
+            loadFromUri: (uri: string) => Promise<void>;
+        };
+        faceExpressionNet: {
+            loadFromUri: (uri: string) => Promise<void>;
+        };
+    };
+    detectAllFaces: (input: HTMLVideoElement, options: unknown) => {
+        withFaceLandmarks: () => {
+            withFaceExpressions: () => Promise<DetectionResult[]>;
+        };
+    };
+    TinyFaceDetectorOptions: new (options: { inputSize: number; scoreThreshold: number }) => unknown;
+}
+
+interface DetectionResult {
+    detection: {
+        box: { x: number; y: number; width: number; height: number };
+        score: number;
+    };
+    landmarks: FaceLandmarks;
+    expressions: Record<string, number>;
+}
+
+interface FaceLandmarks {
+    getNose: () => LandmarkPoint[];
+    getLeftEye: () => LandmarkPoint[];
+    getRightEye: () => LandmarkPoint[];
+    getMouth: () => LandmarkPoint[];
+}
+
+interface LandmarkPoint {
+    x: number;
+    y: number;
+}
+
+// Type for window object with face-api extensions
+interface WindowWithFaceApi extends Window {
+    faceApiLoaded?: boolean;
+}
 
 export class FaceDetectionManager {
     private config: FaceDetectionConfig;
@@ -35,10 +82,10 @@ export class FaceDetectionManager {
             console.log('[FaceDetection] Starting face-api.js detection...');
 
             // Dynamic import face-api.js to avoid SSR issues
-            this.faceapi = await import('face-api.js');
+            this.faceapi = await import('face-api.js') as unknown as FaceAPI;
 
             // Check if face-api.js models are loaded
-            if (!(window as any).faceApiLoaded) {
+            if (!(window as WindowWithFaceApi).faceApiLoaded) {
                 throw new Error('Face detection models not loaded. Please wait for models to load.');
             }
 
@@ -126,7 +173,6 @@ export class FaceDetectionManager {
             // Draw video frame to both canvases
             canvasCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
             detectionCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
-
 
             // Detect faces with landmarks
             const detections = await this.faceapi
@@ -216,24 +262,19 @@ export class FaceDetectionManager {
         }
     }
 
-    private calculateFaceOrientation(landmarks: any): { yaw: number; pitch: number; roll: number } {
+    private calculateFaceOrientation(landmarks: FaceLandmarks): { yaw: number; pitch: number; roll: number } {
         // Get key facial landmarks
         const nose = landmarks.getNose();
         const leftEye = landmarks.getLeftEye();
         const rightEye = landmarks.getRightEye();
         const mouth = landmarks.getMouth();
 
-        // Nose tip and nose bridge points
+        // Nose tip points
         const noseTip = nose[4]; // Bottom of nose
-        const noseBridge = nose[1]; // Top of nose bridge
 
         // Eye centers
         const leftEyeCenter = this.getEyeCenter(leftEye);
         const rightEyeCenter = this.getEyeCenter(rightEye);
-
-        // Mouth corners
-        const leftMouth = mouth[0];
-        const rightMouth = mouth[6];
 
         // Calculate yaw (left-right rotation)
         const eyeDistance = Math.abs(rightEyeCenter.x - leftEyeCenter.x);
@@ -257,7 +298,7 @@ export class FaceDetectionManager {
         return { yaw, pitch, roll };
     }
 
-    private getEyeCenter(eyePoints: any[]): { x: number; y: number } {
+    private getEyeCenter(eyePoints: LandmarkPoint[]): { x: number; y: number } {
         const x = eyePoints.reduce((sum, point) => sum + point.x, 0) / eyePoints.length;
         const y = eyePoints.reduce((sum, point) => sum + point.y, 0) / eyePoints.length;
         return { x, y };

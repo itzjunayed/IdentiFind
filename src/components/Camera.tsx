@@ -3,13 +3,18 @@
 'use client';
 
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { Card, Alert, Badge, Button, Row, Col } from 'react-bootstrap';
+import { Card, Alert, Badge, Button } from 'react-bootstrap';
 import { FaceDetectionManager, createTargetRegion, drawTargetRegion } from '@/lib/face-detection';
 import { FaceDetectionResult, FaceDetectionConfig } from '@/types';
 
 interface CameraProps {
     onImageCaptured: (imageData: string) => void;
     isActive: boolean;
+}
+
+// Type for window object with face-api extensions
+interface WindowWithFaceApi extends Window {
+    faceApiLoaded?: boolean;
 }
 
 export default function Camera({ onImageCaptured, isActive }: CameraProps) {
@@ -23,8 +28,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
-    const [faceInRegion, setFaceInRegion] = useState(false);
-    const [faceStableTime, setFaceStableTime] = useState<number | null>(null);
     const [detectionResults, setDetectionResults] = useState<FaceDetectionResult[]>([]);
     const [isInRestPeriod, setIsInRestPeriod] = useState(false);
     const [restCountdown, setRestCountdown] = useState<number | null>(null);
@@ -42,7 +45,7 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
     // Check if face-api.js models are loaded
     const checkModelsLoaded = useCallback(() => {
-        return (window as any).faceApiLoaded === true;
+        return (window as WindowWithFaceApi).faceApiLoaded === true;
     }, []);
 
     // Handle face detection results with fixed capture and rest logic
@@ -161,8 +164,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             if (!faceStableTimeRef.current) {
                 console.log('🎯 NEW Perfect alignment detected - starting 3-second countdown!');
                 const now = Date.now();
-                setFaceInRegion(true);
-                setFaceStableTime(now);
                 faceStableTimeRef.current = now;
             } else {
                 // CONTINUE with existing timer - DON'T restart
@@ -177,8 +178,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                         setIsCapturing(true);
 
                         // IMMEDIATE RESET to prevent multiple triggers
-                        setFaceInRegion(false);
-                        setFaceStableTime(null);
                         faceStableTimeRef.current = null;
 
                         // Perform capture with debouncing
@@ -258,8 +257,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             // ONLY reset if we were tracking and now lost the face
             if (faceStableTimeRef.current && !isCapturing && !isInRestPeriod) {
                 console.log('⏳ Face alignment lost - resetting stability timer');
-                setFaceInRegion(false);
-                setFaceStableTime(null);
                 faceStableTimeRef.current = null;
             }
         }
@@ -486,8 +483,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
         setIsCapturing(true);
 
         // IMMEDIATE RESET to prevent auto-capture interference
-        setFaceInRegion(false);
-        setFaceStableTime(null);
         faceStableTimeRef.current = null;
 
         try {
@@ -600,8 +595,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
         }
 
         setIsInitialized(false);
-        setFaceInRegion(false);
-        setFaceStableTime(null);
         faceStableTimeRef.current = null;
         setDetectionResults([]);
         setIsInRestPeriod(false);
@@ -630,16 +623,11 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 clearInterval(restPeriodRef.current);
             }
         };
-    }, [isActive]);
+    }, [isActive, isInitialized, initializeCamera, stopCamera]);
 
     if (!isActive) {
         return null;
     }
-
-    const facingCameraFaces = detectionResults.filter(r => r.isFacingCamera).length;
-    const bestConfidence = detectionResults.length > 0
-        ? Math.max(...detectionResults.map(r => r.confidence))
-        : 0;
 
     return (
         <Card className="h-100">

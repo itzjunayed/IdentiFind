@@ -3,6 +3,12 @@
 
 import { useEffect, useState } from 'react';
 
+// Type for window object with face-api extensions
+interface WindowWithFaceApi extends Window {
+    faceApiLoaded?: boolean;
+    faceApiError?: string | null;
+}
+
 export default function FaceApiLoader() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -33,8 +39,8 @@ export default function FaceApiLoader() {
                     setIsLoaded(true);
 
                     // Make loading status available globally
-                    (window as any).faceApiLoaded = true;
-                    (window as any).faceApiError = null;
+                    (window as WindowWithFaceApi).faceApiLoaded = true;
+                    (window as WindowWithFaceApi).faceApiError = null;
 
                     // Dispatch custom event for components that need to know
                     window.dispatchEvent(new CustomEvent('faceApiLoaded'));
@@ -46,8 +52,8 @@ export default function FaceApiLoader() {
                     setError(errorMessage);
 
                     // Make error status available globally
-                    (window as any).faceApiLoaded = false;
-                    (window as any).faceApiError = errorMessage;
+                    (window as WindowWithFaceApi).faceApiLoaded = false;
+                    (window as WindowWithFaceApi).faceApiError = errorMessage;
 
                     // Dispatch error event
                     window.dispatchEvent(new CustomEvent('faceApiError', { detail: errorMessage }));
@@ -69,8 +75,8 @@ export default function FaceApiLoader() {
     // Initialize global state
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            (window as any).faceApiLoaded = isLoaded;
-            (window as any).faceApiError = error;
+            (window as WindowWithFaceApi).faceApiLoaded = isLoaded;
+            (window as WindowWithFaceApi).faceApiError = error;
         }
     }, [isLoaded, error]);
 
