@@ -2,7 +2,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { Container, Row, Col, Card, Button, Badge, Alert, Navbar, Nav } from 'react-bootstrap';
 import Camera from '@/components/Camera';
 import ResultsPanel from '@/components/ResultsPanel';
 import QueueManager from '@/components/QueueManager';
@@ -21,33 +22,83 @@ export default function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [modelsLoaded, setModelsLoaded] = useState(false);
+
+  // Check if face-api.js models are loaded
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
+    const checkModels = () => {
+      const loaded = (window as any).faceApiLoaded === true;
+      setModelsLoaded(loaded);
+    };
+
+    // Check immediately
+    checkModels();
+
+    // Listen for model loading events
+    const handleModelLoaded = () => {
+      console.log('Models loaded event received');
+      setModelsLoaded(true);
+    };
+
+    const handleModelError = (event: CustomEvent) => {
+      console.error('Models loading error:', event.detail);
+      setError(event.detail || 'Failed to load AI models');
+      setModelsLoaded(false);
+    };
+
+    window.addEventListener('faceApiLoaded', handleModelLoaded);
+    window.addEventListener('faceApiError', handleModelError as EventListener);
+
+    // Also check periodically if events don't fire
+    const interval = setInterval(() => {
+      if (!(window as any).faceApiLoaded) {
+        checkModels();
+      } else {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('faceApiLoaded', handleModelLoaded);
+      window.removeEventListener('faceApiError', handleModelError as EventListener);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Load history on component mount
   useEffect(() => {
     loadHistory();
   }, []);
 
-  // Process queue
-  useEffect(() => {
-    processQueue();
-  }, [queue.items, queue.currentProcessingId]);
-
   const loadHistory = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       const response = await fetch('/api/history');
-      if (response.ok) {
-        const data = await response.json();
-        setHistory(data.data || []);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Ensure data.data is an array
+        const historyArray = Array.isArray(data.data) ? data.data : [];
+        setHistory(historyArray);
+      } else {
+        setError(data.error || 'Failed to load history');
+        setHistory([]); // Set empty array on error
       }
     } catch (error) {
       console.error('Error loading history:', error);
+      setError('Network error while loading history');
+      setHistory([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
   };
 
-  const processQueue = async () => {
+  const processQueue = useCallback(async () => {
     if (queue.currentProcessingId || queue.items.length === 0) {
       return;
     }
@@ -130,7 +181,12 @@ export default function Home() {
         ),
       }));
     }
-  };
+  }, [queue.currentProcessingId, queue.items]);
+
+  // Process queue
+  useEffect(() => {
+    processQueue();
+  }, [processQueue]);
 
   const handleImageCaptured = (imageData: string) => {
     const newImage: CapturedImage = {
@@ -173,40 +229,75 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-gray-900">
-              Face Detection & Analysis
-            </h1>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={toggleHistory}
-                className={`px-4 py-2 rounded-md font-medium transition-colors ${showHistory
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+    <>
+      {/* Navigation Bar */}
+      <Navbar bg="primary" variant="dark" expand="lg" className="mb-4">
+        <Container>
+          <Navbar.Brand href="#home">
+            <i className="bi bi-camera-video me-2"></i>
+            Enhanced Face Detection & Analysis
+          </Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="ms-auto">
+              {/* Models Status Badge */}
+              <Badge
+                bg={modelsLoaded ? "success" : "warning"}
+                className="me-3 d-flex align-items-center"
+                style={{ fontSize: '0.8rem' }}
               >
-                {showHistory ? 'Hide History' : 'Show History'}
-              </button>
-              <button
-                onClick={toggleCamera}
-                className={`px-4 py-2 rounded-md font-medium transition-colors ${isCameraOn
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-              >
-                {isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+                <i className={`bi bi-${modelsLoaded ? 'check-circle' : 'hourglass-split'} me-1`}></i>
+                AI Models: {modelsLoaded ? 'Ready' : 'Loading...'}
+              </Badge>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <Button
+                variant={showHistory ? "light" : "outline-light"}
+                onClick={toggleHistory}
+                className="me-2"
+              >
+                <i className="bi bi-clock-history me-1"></i>
+                {showHistory ? 'Hide History' : 'Show History'}
+              </Button>
+              <Button
+                variant={isCameraOn ? "danger" : "success"}
+                onClick={toggleCamera}
+                disabled={!modelsLoaded}
+              >
+                <i className={`bi bi-camera${isCameraOn ? '-video-off' : '-video'} me-1`}></i>
+                {isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+              </Button>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
+
+      <Container fluid>
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="danger" dismissible onClose={() => setError(null)}>
+            <Alert.Heading>Error</Alert.Heading>
+            {error}
+          </Alert>
+        )}
+
+        {/* Models Loading Alert */}
+        {!modelsLoaded && (
+          <Alert variant="info" className="mb-4">
+            <div className="d-flex align-items-center">
+              <div className="spinner-border spinner-border-sm me-3" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <div>
+                <Alert.Heading className="h6 mb-1">Loading AI Models</Alert.Heading>
+                <p className="mb-0">
+                  Face detection models are being loaded. This may take a few moments on first visit.
+                  Camera will be available once models are ready.
+                </p>
+              </div>
+            </div>
+          </Alert>
+        )}
+
         {showHistory ? (
           <HistoryPanel
             history={history}
@@ -214,78 +305,143 @@ export default function Home() {
             onRefresh={loadHistory}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Panel - Results */}
-            <div className="space-y-6">
-              <ResultsPanel
-                results={completedResults}
-                onClear={handleClearResults}
-              />
-
-              <QueueManager
-                queue={queue}
-                onClear={handleClearQueue}
-              />
-            </div>
+          <Row>
+            {/* Left Panel - Results & Queue */}
+            <Col lg={6} className="mb-4">
+              <Row>
+                <Col xs={12} className="mb-4">
+                  <ResultsPanel
+                    results={completedResults}
+                    onClear={handleClearResults}
+                  />
+                </Col>
+                <Col xs={12}>
+                  <QueueManager
+                    queue={queue}
+                    onClear={handleClearQueue}
+                  />
+                </Col>
+              </Row>
+            </Col>
 
             {/* Right Panel - Camera/Upload */}
-            <div className="space-y-6">
-              {isCameraOn ? (
+            <Col lg={6} className="mb-4">
+              {isCameraOn && modelsLoaded ? (
                 <Camera
                   onImageCaptured={handleImageCaptured}
                   isActive={true}
                 />
               ) : (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Camera is Off
-                  </h2>
-                  <p className="text-gray-600 mb-6">
-                    Upload an image to analyze, or turn on the camera to capture faces.
-                    Queue processing will continue in the background.
-                  </p>
-                  <FileUpload onFileUploaded={handleFileUploaded} />
-                </div>
+                <Card className="h-100">
+                  <Card.Header className={`${!modelsLoaded ? 'bg-info' : 'bg-warning'} text-${!modelsLoaded ? 'white' : 'dark'}`}>
+                    <h5 className="mb-0">
+                      <i className={`bi bi-${!modelsLoaded ? 'hourglass-split' : 'camera-video-off'} me-2`}></i>
+                      {!modelsLoaded ? 'AI Models Loading...' : 'Camera is Off'}
+                    </h5>
+                  </Card.Header>
+                  <Card.Body>
+                    {!modelsLoaded ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary mb-3" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <h6>Loading Face Detection Models</h6>
+                        <p className="text-muted mb-4">
+                          This usually takes 10-30 seconds on first visit. The models are being downloaded
+                          and initialized for optimal face detection performance.
+                        </p>
+                        <div className="progress mb-3" style={{ height: '8px' }}>
+                          <div
+                            className="progress-bar progress-bar-striped progress-bar-animated"
+                            role="progressbar"
+                            style={{ width: '100%' }}
+                          ></div>
+                        </div>
+                        <small className="text-muted">
+                          Please wait while we prepare the enhanced face detection system...
+                        </small>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-muted">
+                          Upload an image to analyze, or turn on the camera to capture faces.
+                          Queue processing will continue in the background.
+                        </p>
+                        <FileUpload onFileUploaded={handleFileUploaded} />
+                      </>
+                    )}
+                  </Card.Body>
+                </Card>
               )}
 
-              {/* Status Information */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-3">
-                  System Status
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Camera:</span>
-                    <span className={`font-medium ${isCameraOn ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                      {isCameraOn ? 'Active' : 'Inactive'}
-                    </span>
+              {/* System Status Card */}
+              <Card className="mt-4">
+                <Card.Header>
+                  <h6 className="mb-0">
+                    <i className="bi bi-info-circle me-2"></i>
+                    System Status
+                  </h6>
+                </Card.Header>
+                <Card.Body>
+                  <Row className="g-3">
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">AI Models:</span>
+                        <Badge bg={modelsLoaded ? "success" : "warning"}>
+                          {modelsLoaded ? 'Ready' : 'Loading'}
+                        </Badge>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">Camera:</span>
+                        <Badge bg={isCameraOn && modelsLoaded ? "success" : "danger"}>
+                          {isCameraOn && modelsLoaded ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">Queue Length:</span>
+                        <Badge bg="primary">{queue.items.length}</Badge>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">Processing:</span>
+                        <Badge bg={queue.currentProcessingId ? "warning" : "secondary"}>
+                          {queue.currentProcessingId ? 'In Progress' : 'Idle'}
+                        </Badge>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">Completed:</span>
+                        <Badge bg="success">{completedResults.length}</Badge>
+                      </div>
+                    </Col>
+                    <Col sm={6}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="text-muted">History:</span>
+                        <Badge bg="info">{history.length}</Badge>
+                      </div>
+                    </Col>
+                  </Row>
+
+                  {/* Performance Info */}
+                  <hr className="my-3" />
+                  <div className="text-center">
+                    <small className="text-muted">
+                      <i className="bi bi-lightning-charge-fill text-warning me-1"></i>
+                      Enhanced with face-api.js for superior face detection accuracy
+                    </small>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Queue Length:</span>
-                    <span className="font-medium text-blue-600">
-                      {queue.items.length}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Processing:</span>
-                    <span className={`font-medium ${queue.currentProcessingId ? 'text-yellow-600' : 'text-gray-400'
-                      }`}>
-                      {queue.currentProcessingId ? 'In Progress' : 'Idle'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Completed Results:</span>
-                    <span className="font-medium text-green-600">
-                      {completedResults.length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
         )}
-      </main>
-    </div>
+      </Container>
+    </>
   );
 }

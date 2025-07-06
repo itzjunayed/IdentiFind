@@ -3,6 +3,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Card, Button, Row, Col, Modal, Badge, Table, Spinner } from 'react-bootstrap';
+import Image from 'next/image';
 import { HistoryItem } from '@/types';
 import { formatTimestamp, formatProcessingTime, downloadFile } from '@/lib/utils';
 
@@ -15,10 +17,10 @@ interface HistoryPanelProps {
 export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryPanelProps) {
     const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this result?')) return;
-
         setIsDeleting(id);
         try {
             const response = await fetch(`/api/history?id=${id}`, {
@@ -35,6 +37,8 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
             alert('Failed to delete result');
         } finally {
             setIsDeleting(null);
+            setShowDeleteConfirm(false);
+            setItemToDelete(null);
         }
     };
 
@@ -80,78 +84,98 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
         downloadFile(csvContent, `face-analysis-history-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
     };
 
-    return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Analysis History</h1>
-                        <p className="text-gray-600 mt-1">
-                            {history.length} total results
-                        </p>
-                    </div>
-                    <div className="flex space-x-3">
-                        <button
-                            onClick={onRefresh}
-                            disabled={isLoading}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
-                        >
-                            {isLoading ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            ) : (
-                                <span>🔄</span>
-                            )}
-                            <span>Refresh</span>
-                        </button>
-                        {history.length > 0 && (
-                            <>
-                                <button
-                                    onClick={handleExport}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center space-x-2"
-                                >
-                                    <span>📊</span>
-                                    <span>Export CSV</span>
-                                </button>
-                                <button
-                                    onClick={handleClearAll}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
-                                >
-                                    <span>🗑️</span>
-                                    <span>Clear All</span>
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
+    const confirmDelete = (id: string) => {
+        setItemToDelete(id);
+        setShowDeleteConfirm(true);
+    };
 
-            {/* History Grid */}
+    return (
+        <div className="d-grid gap-4">
+            {/* Header */}
+            <Card>
+                <Card.Header className="bg-primary text-white">
+                    <Row className="align-items-center">
+                        <Col>
+                            <h2 className="mb-0">
+                                <i className="bi bi-clock-history me-2"></i>
+                                Analysis History
+                            </h2>
+                            <p className="mb-0 opacity-75">
+                                <Badge bg="light" text="dark">{history.length}</Badge> total results
+                            </p>
+                        </Col>
+                        <Col xs="auto">
+                            <div className="d-flex gap-2">
+                                <Button
+                                    variant="light"
+                                    onClick={onRefresh}
+                                    disabled={isLoading}
+                                    className="d-flex align-items-center"
+                                >
+                                    {isLoading ? (
+                                        <Spinner animation="border" size="sm" className="me-2" />
+                                    ) : (
+                                        <i className="bi bi-arrow-clockwise me-2"></i>
+                                    )}
+                                    Refresh
+                                </Button>
+                                {history.length > 0 && (
+                                    <>
+                                        <Button
+                                            variant="success"
+                                            onClick={handleExport}
+                                            className="d-flex align-items-center"
+                                        >
+                                            <i className="bi bi-download me-2"></i>
+                                            Export CSV
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            onClick={handleClearAll}
+                                            className="d-flex align-items-center"
+                                        >
+                                            <i className="bi bi-trash me-2"></i>
+                                            Clear All
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+                        </Col>
+                    </Row>
+                </Card.Header>
+            </Card>
+
+            {/* Content */}
             {isLoading ? (
-                <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading history...</p>
-                </div>
+                <Card>
+                    <Card.Body className="text-center py-5">
+                        <Spinner animation="border" variant="primary" />
+                        <p className="text-muted mt-3 mb-0">Loading history...</p>
+                    </Card.Body>
+                </Card>
             ) : history.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                    <div className="text-gray-400 text-6xl mb-4">📚</div>
-                    <p className="text-gray-500 text-lg">No history found</p>
-                    <p className="text-gray-400 mt-2">
-                        Start capturing faces to build your analysis history
-                    </p>
-                </div>
+                <Card>
+                    <Card.Body className="text-center py-5">
+                        <i className="bi bi-archive text-muted" style={{ fontSize: '4rem' }}></i>
+                        <h4 className="text-muted mt-3">No history found</h4>
+                        <p className="text-muted">
+                            Start capturing faces to build your analysis history
+                        </p>
+                    </Card.Body>
+                </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Row className="g-4">
                     {history.map((item) => (
-                        <HistoryCard
-                            key={item._id}
-                            item={item}
-                            onSelect={() => setSelectedItem(item)}
-                            onDelete={() => handleDelete(item._id)}
-                            isDeleting={isDeleting === item._id}
-                        />
+                        <Col key={item._id} xs={12} md={6} lg={4}>
+                            <HistoryCard
+                                item={item}
+                                onSelect={() => setSelectedItem(item)}
+                                onDelete={() => confirmDelete(item._id)}
+                                isDeleting={isDeleting === item._id}
+                            />
+                        </Col>
                     ))}
-                </div>
+                </Row>
             )}
 
             {/* Detail Modal */}
@@ -161,6 +185,41 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
                     onClose={() => setSelectedItem(null)}
                 />
             )}
+
+            {/* Delete Confirmation Modal */}
+            <Modal show={showDeleteConfirm} onHide={() => setShowDeleteConfirm(false)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title>
+                        <i className="bi bi-exclamation-triangle text-warning me-2"></i>
+                        Confirm Delete
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Are you sure you want to delete this analysis result? This action cannot be undone.
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="danger"
+                        onClick={() => itemToDelete && handleDelete(itemToDelete)}
+                        disabled={!!isDeleting}
+                    >
+                        {isDeleting ? (
+                            <>
+                                <Spinner animation="border" size="sm" className="me-2" />
+                                Deleting...
+                            </>
+                        ) : (
+                            <>
+                                <i className="bi bi-trash me-2"></i>
+                                Delete
+                            </>
+                        )}
+                    </Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
 }
@@ -174,49 +233,66 @@ interface HistoryCardProps {
 
 function HistoryCard({ item, onSelect, onDelete, isDeleting }: HistoryCardProps) {
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+        <Card className="h-100 shadow-sm">
             {/* Image */}
-            <div className="aspect-square bg-gray-100">
-                <img
+            <div style={{ height: '200px', overflow: 'hidden', position: 'relative' }}>
+                <Image
                     src={item.imageData}
                     alt="Analysis result"
-                    className="w-full h-full object-cover cursor-pointer"
+                    fill
+                    className="object-fit-cover"
+                    style={{ cursor: 'pointer' }}
                     onClick={onSelect}
+                    sizes="(max-width: 768px) 100vw, (max-width: 992px) 50vw, 33vw"
                 />
             </div>
 
             {/* Content */}
-            <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                    <div className="text-sm text-gray-500">
+            <Card.Body className="d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                    <small className="text-muted">
+                        <i className="bi bi-calendar me-1"></i>
                         {formatTimestamp(item.capturedAt)}
-                    </div>
-                    <div className="text-sm text-blue-600 font-medium">
+                    </small>
+                    <Badge bg="info">
+                        <i className="bi bi-stopwatch me-1"></i>
                         {formatProcessingTime(item.processingTimeMs)}
-                    </div>
+                    </Badge>
                 </div>
 
-                <p className="text-sm text-gray-700 line-clamp-3 mb-3">
+                <p className="text-sm flex-grow-1" style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                }}>
                     {item.result}
                 </p>
 
-                <div className="flex justify-between items-center">
-                    <button
+                <div className="d-flex justify-content-between align-items-center mt-auto">
+                    <Button
+                        variant="outline-primary"
+                        size="sm"
                         onClick={onSelect}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                     >
+                        <i className="bi bi-eye me-1"></i>
                         View Details
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                        variant="outline-danger"
+                        size="sm"
                         onClick={onDelete}
                         disabled={isDeleting}
-                        className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
                     >
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                    </button>
+                        {isDeleting ? (
+                            <Spinner animation="border" size="sm" />
+                        ) : (
+                            <i className="bi bi-trash"></i>
+                        )}
+                    </Button>
                 </div>
-            </div>
-        </div>
+            </Card.Body>
+        </Card>
     );
 }
 
@@ -236,70 +312,73 @@ function HistoryDetailModal({ item, onClose }: HistoryDetailModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="flex justify-between items-center p-6 border-b">
-                    <h2 className="text-xl font-semibold text-gray-900">Analysis Details</h2>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 text-2xl"
-                    >
-                        ×
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Image */}
-                        <div>
-                            <img
+        <Modal show={true} onHide={onClose} size="lg" centered>
+            <Modal.Header closeButton>
+                <Modal.Title>
+                    <i className="bi bi-info-circle me-2"></i>
+                    Analysis Details
+                </Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                <Row className="g-4">
+                    {/* Image */}
+                    <Col md={6}>
+                        <div style={{ position: 'relative', width: '100%', height: '300px' }}>
+                            <Image
                                 src={item.imageData}
                                 alt="Analysis result"
-                                className="w-full rounded-lg border"
+                                fill
+                                className="rounded border object-fit-cover"
+                                sizes="(max-width: 768px) 100vw, 50vw"
                             />
-                            <button
-                                onClick={handleDownloadImage}
-                                className="mt-3 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center space-x-2"
-                            >
-                                <span>⬇️</span>
-                                <span>Download Image</span>
-                            </button>
                         </div>
+                        <Button
+                            variant="primary"
+                            className="w-100 mt-3"
+                            onClick={handleDownloadImage}
+                        >
+                            <i className="bi bi-download me-2"></i>
+                            Download Image
+                        </Button>
+                    </Col>
 
-                        {/* Details */}
-                        <div className="space-y-4">
-                            <div>
-                                <h3 className="text-sm font-medium text-gray-900 mb-2">Analysis Result</h3>
-                                <p className="text-gray-700 leading-relaxed">{item.result}</p>
-                            </div>
+                    {/* Details */}
+                    <Col md={6}>
+                        <Card>
+                            <Card.Header>
+                                <h6 className="mb-0">
+                                    <i className="bi bi-chat-quote me-2"></i>
+                                    Analysis Result
+                                </h6>
+                            </Card.Header>
+                            <Card.Body>
+                                <p className="mb-0">{item.result}</p>
+                            </Card.Body>
+                        </Card>
 
-                            <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-900">Captured At</h4>
-                                    <p className="text-gray-600">{formatTimestamp(item.capturedAt)}</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-900">Processed At</h4>
-                                    <p className="text-gray-600">{formatTimestamp(item.createdAt)}</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-900">Processing Time</h4>
-                                    <p className="text-gray-600">{formatProcessingTime(item.processingTimeMs)}</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-sm font-medium text-gray-900">Record ID</h4>
-                                    <p className="text-gray-600 font-mono text-sm">{item._id}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                        <Table striped bordered className="mt-3">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Captured At</strong></td>
+                                    <td>{formatTimestamp(item.capturedAt)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Processed At</strong></td>
+                                    <td>{formatTimestamp(item.createdAt)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Processing Time</strong></td>
+                                    <td>{formatProcessingTime(item.processingTimeMs)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Record ID</strong></td>
+                                    <td><code className="small">{item._id}</code></td>
+                                </tr>
+                            </tbody>
+                        </Table>
+                    </Col>
+                </Row>
+            </Modal.Body>
+        </Modal>
     );
 }

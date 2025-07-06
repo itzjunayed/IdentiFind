@@ -3,6 +3,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Card, Button, Badge, Row, Col } from 'react-bootstrap';
+import Image from 'next/image';
 import { CapturedImage } from '@/types';
 import { formatTimestamp, formatProcessingTime } from '@/lib/utils';
 
@@ -14,126 +16,147 @@ interface ResultsPanelProps {
 export default function ResultsPanel({ results, onClear }: ResultsPanelProps) {
     if (results.length === 0) {
         return (
-            <div className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">Analysis Results</h2>
-                </div>
-                <div className="text-center py-8">
-                    <div className="text-gray-400 text-6xl mb-4">📊</div>
-                    <p className="text-gray-500">No results yet</p>
-                    <p className="text-sm text-gray-400 mt-2">
+            <Card>
+                <Card.Header className="bg-success text-white">
+                    <h5 className="mb-0">
+                        <i className="bi bi-graph-up me-2"></i>
+                        Analysis Results
+                    </h5>
+                </Card.Header>
+                <Card.Body className="text-center py-5">
+                    <i className="bi bi-graph-up text-muted" style={{ fontSize: '4rem' }}></i>
+                    <p className="text-muted mt-3 mb-1">No results yet</p>
+                    <small className="text-muted">
                         Capture a face or upload an image to see analysis results here
-                    </p>
-                </div>
-            </div>
+                    </small>
+                </Card.Body>
+            </Card>
         );
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
+        <Card>
+            <Card.Header className="bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">
+                    <i className="bi bi-graph-up me-2"></i>
                     Analysis Results ({results.length})
-                </h2>
-                <button
+                </h5>
+                <Button
+                    variant="light"
+                    size="sm"
                     onClick={onClear}
-                    className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
                 >
+                    <i className="bi bi-trash me-1"></i>
                     Clear All
-                </button>
-            </div>
+                </Button>
+            </Card.Header>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-                {results.map((result) => (
-                    <ResultCard key={result.id} result={result} />
-                ))}
-            </div>
-        </div>
+            <Card.Body style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                <div className="d-grid gap-3">
+                    {results.map((result) => (
+                        <ResultCard key={result.id} result={result} />
+                    ))}
+                </div>
+            </Card.Body>
+        </Card>
     );
 }
 
 function ResultCard({ result }: { result: CapturedImage }) {
-    return (
-        <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-            <div className="flex space-x-4">
-                {/* Image */}
-                <div className="flex-shrink-0">
-                    <img
-                        src={result.imageData}
-                        alt="Captured face"
-                        className="w-20 h-20 object-cover rounded-lg border"
-                    />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start mb-2">
-                        <div className="text-sm text-gray-500">
-                            Captured: {formatTimestamp(result.timestamp)}
-                        </div>
-                        {result.processingTimeMs && (
-                            <div className="text-sm text-blue-600 font-medium">
-                                {formatProcessingTime(result.processingTimeMs)}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Status */}
-                    <div className="mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${result.status === 'completed'
-                                ? 'bg-green-100 text-green-800'
-                                : result.status === 'error'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                            {result.status === 'completed' ? '✓ Completed' :
-                                result.status === 'error' ? '✗ Error' : '⏳ Processing'}
-                        </span>
-                    </div>
-
-                    {/* Result text */}
-                    <div className="text-sm text-gray-700">
-                        {result.result ? (
-                            <p className="line-clamp-3">{result.result}</p>
-                        ) : (
-                            <p className="text-gray-400 italic">Processing...</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Expand button for long text */}
-            {result.result && result.result.length > 150 && (
-                <ExpandableText text={result.result} />
-            )}
-        </div>
-    );
-}
-
-function ExpandableText({ text }: { text: string }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
+    const getStatusVariant = (status: string) => {
+        switch (status) {
+            case 'completed': return 'success';
+            case 'error': return 'danger';
+            default: return 'warning';
+        }
+    };
+
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'completed': return 'check-circle';
+            case 'error': return 'x-circle';
+            default: return 'clock';
+        }
+    };
+
     return (
-        <div className="mt-3 pt-3 border-t border-gray-100">
-            <div className={`text-sm text-gray-700 ${isExpanded ? '' : 'line-clamp-3'}`}>
-                {text}
-            </div>
-            <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-                {isExpanded ? 'Show Less' : 'Show More'}
-            </button>
-        </div>
+        <Card className="border">
+            <Card.Body className="p-3">
+                <Row className="g-3">
+                    {/* Image */}
+                    <Col xs="auto">
+                        <div style={{ width: '80px', height: '80px', position: 'relative' }}>
+                            <Image
+                                src={result.imageData}
+                                alt="Captured face"
+                                fill
+                                className="rounded border"
+                                style={{ objectFit: 'cover' }}
+                                sizes="80px"
+                            />
+                        </div>
+                    </Col>
+
+                    {/* Content */}
+                    <Col>
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                            <small className="text-muted">
+                                <i className="bi bi-camera me-1"></i>
+                                {formatTimestamp(result.timestamp)}
+                            </small>
+                            {result.processingTimeMs && (
+                                <Badge bg="info">
+                                    <i className="bi bi-stopwatch me-1"></i>
+                                    {formatProcessingTime(result.processingTimeMs)}
+                                </Badge>
+                            )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="mb-2">
+                            <Badge bg={getStatusVariant(result.status)}>
+                                <i className={`bi bi-${getStatusIcon(result.status)} me-1`}></i>
+                                {result.status === 'completed' ? 'Completed' :
+                                    result.status === 'error' ? 'Error' : 'Processing'}
+                            </Badge>
+                        </div>
+
+                        {/* Result text preview */}
+                        <div className="text-sm">
+                            {result.result ? (
+                                <>
+                                    <p className="mb-2" style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: isExpanded ? 'none' : 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {result.result}
+                                    </p>
+                                    {result.result.length > 100 && (
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="p-0 text-decoration-none"
+                                            onClick={() => setIsExpanded(!isExpanded)}
+                                        >
+                                            <i className={`bi bi-chevron-${isExpanded ? 'up' : 'down'} me-1`}></i>
+                                            {isExpanded ? 'Show Less' : 'Show More'}
+                                        </Button>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-muted fst-italic mb-0">
+                                    <i className="bi bi-hourglass-split me-1"></i>
+                                    Processing...
+                                </p>
+                            )}
+                        </div>
+                    </Col>
+                </Row>
+            </Card.Body>
+        </Card>
     );
 }
-
-// Add this to your global CSS for line-clamp utility
-const lineClampStyles = `
-  .line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-`;

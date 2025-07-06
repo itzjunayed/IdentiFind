@@ -67,7 +67,7 @@ export const resizeImage = (
     const originalWidth = canvas.width;
     const originalHeight = canvas.height;
 
-    let { width, height } = calculateDimensions(
+    const { width, height } = calculateDimensions(
         originalWidth,
         originalHeight,
         maxWidth,
@@ -91,23 +91,33 @@ export const calculateDimensions = (
     maxWidth: number,
     maxHeight: number
 ): { width: number; height: number } => {
-    let width = originalWidth;
-    let height = originalHeight;
+    const width = originalWidth;
+    const height = originalHeight;
 
     if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
+        const newHeight = (height * maxWidth) / width;
+        const newWidth = maxWidth;
+
+        if (newHeight > maxHeight) {
+            return {
+                width: Math.round((newWidth * maxHeight) / newHeight),
+                height: Math.round(maxHeight)
+            };
+        }
+
+        return { width: Math.round(newWidth), height: Math.round(newHeight) };
     }
 
     if (height > maxHeight) {
-        width = (width * maxHeight) / height;
-        height = maxHeight;
+        const newWidth = (width * maxHeight) / height;
+        const newHeight = maxHeight;
+        return { width: Math.round(newWidth), height: Math.round(newHeight) };
     }
 
     return { width: Math.round(width), height: Math.round(height) };
 };
 
-export const debounce = <T extends (...args: any[]) => any>(
+export const debounce = <T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
 ): (...args: Parameters<T>) => void => {
@@ -115,11 +125,11 @@ export const debounce = <T extends (...args: any[]) => any>(
 
     return (...args: Parameters<T>) => {
         clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(null, args), wait);
+        timeout = setTimeout(() => func(...args), wait);
     };
 };
 
-export const throttle = <T extends (...args: any[]) => any>(
+export const throttle = <T extends (...args: unknown[]) => unknown>(
     func: T,
     limit: number
 ): (...args: Parameters<T>) => void => {
@@ -127,7 +137,7 @@ export const throttle = <T extends (...args: any[]) => any>(
 
     return (...args: Parameters<T>) => {
         if (!inThrottle) {
-            func.apply(null, args);
+            func(...args);
             inThrottle = true;
             setTimeout(() => (inThrottle = false), limit);
         }

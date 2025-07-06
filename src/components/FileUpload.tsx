@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { Card, Button, Alert, Row, Col, Form, Badge } from 'react-bootstrap';
 import { validateImageFile, blobToDataURL } from '@/lib/utils';
 
 interface FileUploadProps {
@@ -13,11 +14,12 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [preview, setPreview] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelect = useCallback(async (file: File) => {
         setError(null);
+        setSuccess(null);
         setIsUploading(true);
 
         try {
@@ -30,14 +32,15 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
 
             // Convert to data URL
             const imageData = await blobToDataURL(file);
-            setPreview(imageData);
 
             // Call the callback
             onFileUploaded(imageData);
 
-            // Clear preview after a delay
+            setSuccess(`✅ Successfully uploaded: ${file.name}`);
+
+            // Clear success message after delay
             setTimeout(() => {
-                setPreview(null);
+                setSuccess(null);
             }, 3000);
 
         } catch (err) {
@@ -58,7 +61,7 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
         if (imageFile) {
             handleFileSelect(imageFile);
         } else {
-            setError('Please drop an image file');
+            setError('Please drop an image file (JPEG, PNG, WebP)');
         }
     }, [handleFileSelect]);
 
@@ -87,146 +90,7 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
         fileInputRef.current?.click();
     };
 
-    return (
-        <div className="space-y-4">
-            {/* Drop Zone */}
-            <div
-                className={`
-          relative border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer
-          ${isDragging
-                        ? 'border-blue-400 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                    }
-          ${isUploading ? 'opacity-50 pointer-events-none' : ''}
-        `}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={handleClick}
-            >
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                />
-
-                {isUploading ? (
-                    <div className="space-y-3">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="text-gray-600">Processing image...</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        <div className="text-gray-400 text-6xl">📷</div>
-                        <div>
-                            <p className="text-lg text-gray-600">
-                                {isDragging ? 'Drop your image here' : 'Drag & drop an image here'}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                                or click to select a file
-                            </p>
-                        </div>
-                        <div className="text-xs text-gray-400">
-                            Supports: JPEG, PNG, WebP (max 10MB)
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Error Message */}
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-red-600 text-sm">{error}</p>
-                </div>
-            )}
-
-            {/* Preview */}
-            {preview && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                    <div className="flex items-center space-x-3">
-                        <img
-                            src={preview}
-                            alt="Upload preview"
-                            className="w-16 h-16 object-cover rounded border"
-                        />
-                        <div className="flex-1">
-                            <p className="text-green-800 font-medium">✓ Image uploaded successfully!</p>
-                            <p className="text-green-600 text-sm">Added to processing queue</p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                    onClick={handleClick}
-                    disabled={isUploading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                    <span>📁</span>
-                    <span>Choose File</span>
-                </button>
-
-                <button
-                    onClick={() => {
-                        setPreview(null);
-                        setError(null);
-                    }}
-                    disabled={isUploading || (!preview && !error)}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 disabled:opacity-50 flex items-center justify-center space-x-2"
-                >
-                    <span>🗑️</span>
-                    <span>Clear</span>
-                </button>
-            </div>
-
-            {/* Instructions */}
-            <div className="bg-blue-50 p-4 rounded-md">
-                <h3 className="text-sm font-medium text-blue-900 mb-2">Upload Instructions:</h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• Upload clear images with visible faces</li>
-                    <li>• Supported formats: JPEG, PNG, WebP</li>
-                    <li>• Maximum file size: 10MB</li>
-                    <li>• Images will be automatically processed and analyzed</li>
-                </ul>
-            </div>
-
-            {/* Sample Images */}
-            <div className="border-t pt-4">
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Need test images?</h3>
-                <div className="grid grid-cols-3 gap-2">
-                    <SampleImageButton
-                        label="Portrait 1"
-                        onSelect={onFileUploaded}
-                        disabled={isUploading}
-                    />
-                    <SampleImageButton
-                        label="Portrait 2"
-                        onSelect={onFileUploaded}
-                        disabled={isUploading}
-                    />
-                    <SampleImageButton
-                        label="Portrait 3"
-                        onSelect={onFileUploaded}
-                        disabled={isUploading}
-                    />
-                </div>
-            </div>
-        </div>
-    );
-}
-
-interface SampleImageButtonProps {
-    label: string;
-    onSelect: (imageData: string) => void;
-    disabled: boolean;
-}
-
-function SampleImageButton({ label, onSelect, disabled }: SampleImageButtonProps) {
-    const generateSampleImage = useCallback(() => {
+    const generateSampleImage = useCallback((label: string) => {
         // Create a sample image using canvas
         const canvas = document.createElement('canvas');
         canvas.width = 400;
@@ -234,17 +98,17 @@ function SampleImageButton({ label, onSelect, disabled }: SampleImageButtonProps
         const ctx = canvas.getContext('2d')!;
 
         // Draw a simple sample "face"
-        ctx.fillStyle = '#f3f4f6';
+        ctx.fillStyle = '#f8f9fa';
         ctx.fillRect(0, 0, 400, 400);
 
         // Face outline
-        ctx.fillStyle = '#fbbf24';
+        ctx.fillStyle = '#ffc107';
         ctx.beginPath();
         ctx.arc(200, 200, 150, 0, 2 * Math.PI);
         ctx.fill();
 
         // Eyes
-        ctx.fillStyle = '#1f2937';
+        ctx.fillStyle = '#212529';
         ctx.beginPath();
         ctx.arc(160, 170, 15, 0, 2 * Math.PI);
         ctx.fill();
@@ -253,29 +117,190 @@ function SampleImageButton({ label, onSelect, disabled }: SampleImageButtonProps
         ctx.fill();
 
         // Smile
-        ctx.strokeStyle = '#1f2937';
+        ctx.strokeStyle = '#212529';
         ctx.lineWidth = 5;
         ctx.beginPath();
         ctx.arc(200, 220, 50, 0, Math.PI);
         ctx.stroke();
 
         // Add label
-        ctx.fillStyle = '#1f2937';
+        ctx.fillStyle = '#212529';
         ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(label, 200, 350);
 
         const imageData = canvas.toDataURL('image/jpeg', 0.8);
-        onSelect(imageData);
-    }, [label, onSelect]);
+        onFileUploaded(imageData);
+        setSuccess(`✅ Generated sample: ${label}`);
+        setTimeout(() => setSuccess(null), 3000);
+    }, [onFileUploaded]);
 
     return (
-        <button
-            onClick={generateSampleImage}
-            disabled={disabled}
-            className="p-2 text-xs bg-gray-100 text-gray-700 rounded border hover:bg-gray-200 disabled:opacity-50"
-        >
-            {label}
-        </button>
+        <div className="d-grid gap-3">
+            {/* Drop Zone */}
+            <Card
+                className={`border-2 border-dashed text-center ${isDragging
+                        ? 'border-primary bg-primary bg-opacity-10'
+                        : 'border-secondary'
+                    } ${isUploading ? 'opacity-50' : ''}`}
+                style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}
+                onClick={!isUploading ? handleClick : undefined}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+            >
+                <Card.Body className="py-5">
+                    <Form.Control
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileInputChange}
+                        className="d-none"
+                    />
+
+                    {isUploading ? (
+                        <div>
+                            <div className="spinner-border text-primary mb-3" role="status">
+                                <span className="visually-hidden">Processing...</span>
+                            </div>
+                            <p className="text-muted mb-0">Processing image...</p>
+                        </div>
+                    ) : (
+                        <div>
+                            <i className="bi bi-cloud-upload text-muted" style={{ fontSize: '3rem' }}></i>
+                            <h6 className="mt-3 mb-2">
+                                {isDragging ? 'Drop your image here' : 'Drag & drop an image here'}
+                            </h6>
+                            <p className="text-muted small mb-3">
+                                or click to select a file
+                            </p>
+                            <div className="d-flex justify-content-center gap-2 flex-wrap">
+                                <Badge bg="secondary">JPEG</Badge>
+                                <Badge bg="secondary">PNG</Badge>
+                                <Badge bg="secondary">WebP</Badge>
+                                <Badge bg="secondary">Max 10MB</Badge>
+                            </div>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
+
+            {/* Error Message */}
+            {error && (
+                <Alert variant="danger" dismissible onClose={() => setError(null)}>
+                    <Alert.Heading className="h6">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        Upload Error
+                    </Alert.Heading>
+                    {error}
+                </Alert>
+            )}
+
+            {/* Success Message */}
+            {success && (
+                <Alert variant="success" dismissible onClose={() => setSuccess(null)}>
+                    <Alert.Heading className="h6">
+                        <i className="bi bi-check-circle me-2"></i>
+                        Upload Success
+                    </Alert.Heading>
+                    {success}
+                    <hr />
+                    <p className="mb-0 small">Image has been added to the processing queue.</p>
+                </Alert>
+            )}
+
+            {/* Quick Actions */}
+            <Row className="g-2">
+                <Col>
+                    <Button
+                        variant="primary"
+                        className="w-100"
+                        onClick={handleClick}
+                        disabled={isUploading}
+                    >
+                        <i className="bi bi-folder2-open me-2"></i>
+                        Choose File
+                    </Button>
+                </Col>
+                <Col>
+                    <Button
+                        variant="outline-secondary"
+                        className="w-100"
+                        onClick={() => {
+                            setError(null);
+                            setSuccess(null);
+                        }}
+                        disabled={isUploading || (!error && !success)}
+                    >
+                        <i className="bi bi-x-circle me-2"></i>
+                        Clear
+                    </Button>
+                </Col>
+            </Row>
+
+            {/* Instructions */}
+            <Alert variant="info">
+                <Alert.Heading className="h6">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Upload Instructions
+                </Alert.Heading>
+                <ul className="mb-0 small">
+                    <li>Upload clear images with visible faces</li>
+                    <li>Supported formats: JPEG, PNG, WebP</li>
+                    <li>Maximum file size: 10MB</li>
+                    <li>Images will be automatically processed and analyzed</li>
+                </ul>
+            </Alert>
+
+            {/* Sample Images */}
+            <Card>
+                <Card.Header>
+                    <h6 className="mb-0">
+                        <i className="bi bi-images me-2"></i>
+                        Need test images?
+                    </h6>
+                </Card.Header>
+                <Card.Body>
+                    <p className="text-muted small mb-3">
+                        Generate sample face images for testing:
+                    </p>
+                    <Row className="g-2">
+                        <Col xs={4}>
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="w-100"
+                                onClick={() => generateSampleImage('Sample 1')}
+                                disabled={isUploading}
+                            >
+                                Portrait 1
+                            </Button>
+                        </Col>
+                        <Col xs={4}>
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="w-100"
+                                onClick={() => generateSampleImage('Sample 2')}
+                                disabled={isUploading}
+                            >
+                                Portrait 2
+                            </Button>
+                        </Col>
+                        <Col xs={4}>
+                            <Button
+                                variant="outline-primary"
+                                size="sm"
+                                className="w-100"
+                                onClick={() => generateSampleImage('Sample 3')}
+                                disabled={isUploading}
+                            >
+                                Portrait 3
+                            </Button>
+                        </Col>
+                    </Row>
+                </Card.Body>
+            </Card>
+        </div>
     );
 }

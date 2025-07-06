@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { ApiResponse } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -50,9 +51,8 @@ export async function POST(request: NextRequest) {
                 const filepath = join(uploadsDir, filename);
 
                 // Create uploads directory if it doesn't exist
-                const fs = require('fs');
-                if (!fs.existsSync(uploadsDir)) {
-                    fs.mkdirSync(uploadsDir, { recursive: true });
+                if (!existsSync(uploadsDir)) {
+                    mkdirSync(uploadsDir, { recursive: true });
                 }
 
                 await writeFile(filepath, buffer);
@@ -136,9 +136,8 @@ export async function PUT(request: NextRequest) {
                 const buffer = Buffer.from(base64Data, 'base64');
                 const filepath = join(uploadsDir, `${Date.now()}-${filename}`);
 
-                const fs = require('fs');
-                if (!fs.existsSync(uploadsDir)) {
-                    fs.mkdirSync(uploadsDir, { recursive: true });
+                if (!existsSync(uploadsDir)) {
+                    mkdirSync(uploadsDir, { recursive: true });
                 }
 
                 await writeFile(filepath, buffer);

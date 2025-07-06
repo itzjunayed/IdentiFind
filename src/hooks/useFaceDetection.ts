@@ -1,6 +1,6 @@
 // src/hooks/useFaceDetection.ts
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { FaceDetectionManager, createTargetRegion } from '@/lib/face-detection';
 import { FaceDetectionResult, FaceDetectionConfig } from '@/types';
 
@@ -61,51 +61,77 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
     const [error, setError] = useState<string | null>(null);
     const [detectionResults, setDetectionResults] = useState<FaceDetectionResult[]>([]);
 
-    const config: FaceDetectionConfig = {
+    const config: FaceDetectionConfig = useMemo(() => ({
         minDetectionConfidence,
         stabilityThreshold,
         captureDelay,
-    };
+    }), [minDetectionConfidence, stabilityThreshold, captureDelay]);
 
-    const targetRegion = createTargetRegion(canvasWidth, canvasHeight);
+    const targetRegion = useMemo(() => createTargetRegion(canvasWidth, canvasHeight), [canvasWidth, canvasHeight]);
 
-    // Handle face detection results
-    const handleDetectionResults = useCallback((results: FaceDetectionResult[]) => {
-        setDetectionResults(results);
+    // Start countdown for capture
+    const startCountdown = useCallback(() => {
+        if (countdownIntervalRef.current) return;
 
-        if (!managerRef.current || isCapturing) return;
+        let count = Math.ceil(captureDelay / 1000);
+        setCountdown(count);
 
-        // Check if face is in target region
-        const faceInRegion = results.some(detection =>
-            managerRef.current?.isInTargetRegion(detection, targetRegion)
-        );
+        countdownIntervalRef.current = setInterval(() => {
+            count--;
+            setCountdown(count);
 
-        setFaceDetected(faceInRegion);
+            if (count <= 0) {
+                if (countdownIntervalRef.current) {
+                    clearInterval(countdownIntervalRef.current);
+                    countdownIntervalRef.current = null;
+                }
+                setCountdown(null);
 
-        if (faceInRegion) {
-            // Start or continue stability tracking
-            if (!stableTimeRef.current) {
-                stableTimeRef.current = Date.now();
-                setFaceStable(false);
-            } else {
-                const elapsed = Date.now() - stableTimeRef.current;
-                if (elapsed >= stabilityThreshold && !faceStable) {
-                    setFaceStable(true);
-                    startCountdown();
+                // Perform capture
+                if (managerRef.current && onCapture && !isCapturing) {
+                    setIsCapturing(true);
+                    try {
+                        const imageData = managerRef.current.captureImage();
+                        if (imageData) {
+                            onCapture(imageData);
+
+                            // Flash effect
+                            if (overlayCanvasRef.current) {
+                                const ctx = overlayCanvasRef.current.getContext('2d');
+                                if (ctx) {
+                                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                                    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+                                    setTimeout(() => {
+                                        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                                    }, 200);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error capturing image:', error);
+                        setError('Failed to capture image');
+                    } finally {
+                        // Reset state after capture
+                        captureTimeoutRef.current = setTimeout(() => {
+                            setIsCapturing(false);
+                            setFaceStable(false);
+                            stableTimeRef.current = null;
+                        }, 1000);
+                    }
                 }
             }
-        } else {
-            // Reset stability tracking
-            if (stableTimeRef.current) {
-                stableTimeRef.current = null;
-                setFaceStable(false);
-                stopCountdown();
-            }
-        }
+        }, 1000);
+    }, [captureDelay, onCapture, isCapturing]);
 
-        // Update overlay canvas
-        updateOverlay(results, faceInRegion);
-    }, [targetRegion, stabilityThreshold, faceStable, isCapturing]);
+    // Stop countdown
+    const stopCountdown = useCallback(() => {
+        if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+        }
+        setCountdown(null);
+    }, []);
 
     // Update overlay canvas with detection results
     const updateOverlay = useCallback((
@@ -213,32 +239,43 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
         });
     }, [targetRegion, countdown, faceStable]);
 
-    // Start countdown for capture
-    const startCountdown = useCallback(() => {
-        if (countdownIntervalRef.current) return;
+    // Handle face detection results
+    const handleDetectionResults = useCallback((results: FaceDetectionResult[]) => {
+        setDetectionResults(results);
 
-        let count = Math.ceil(captureDelay / 1000);
-        setCountdown(count);
+        if (!managerRef.current || isCapturing) return;
 
-        countdownIntervalRef.current = setInterval(() => {
-            count--;
-            setCountdown(count);
+        // Check if face is in target region
+        const faceInRegion = results.some(detection =>
+            managerRef.current?.isInTargetRegion(detection, targetRegion)
+        );
 
-            if (count <= 0) {
-                stopCountdown();
-                performCapture();
+        setFaceDetected(faceInRegion);
+
+        if (faceInRegion) {
+            // Start or continue stability tracking
+            if (!stableTimeRef.current) {
+                stableTimeRef.current = Date.now();
+                setFaceStable(false);
+            } else {
+                const elapsed = Date.now() - stableTimeRef.current;
+                if (elapsed >= stabilityThreshold && !faceStable) {
+                    setFaceStable(true);
+                    startCountdown();
+                }
             }
-        }, 1000);
-    }, [captureDelay]);
-
-    // Stop countdown
-    const stopCountdown = useCallback(() => {
-        if (countdownIntervalRef.current) {
-            clearInterval(countdownIntervalRef.current);
-            countdownIntervalRef.current = null;
+        } else {
+            // Reset stability tracking
+            if (stableTimeRef.current) {
+                stableTimeRef.current = null;
+                setFaceStable(false);
+                stopCountdown();
+            }
         }
-        setCountdown(null);
-    }, []);
+
+        // Update overlay canvas
+        updateOverlay(results, faceInRegion);
+    }, [targetRegion, stabilityThreshold, faceStable, isCapturing, startCountdown, stopCountdown, updateOverlay]);
 
     // Perform image capture
     const performCapture = useCallback(async () => {
@@ -269,7 +306,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
             setError('Failed to capture image');
         } finally {
             // Reset state after capture
-            setTimeout(() => {
+            captureTimeoutRef.current = setTimeout(() => {
                 setIsCapturing(false);
                 setFaceStable(false);
                 stableTimeRef.current = null;
@@ -347,6 +384,7 @@ export function useFaceDetection(options: UseFaceDetectionOptions = {}): UseFace
             stop();
             if (captureTimeoutRef.current) {
                 clearTimeout(captureTimeoutRef.current);
+                captureTimeoutRef.current = null;
             }
         };
     }, [stop]);

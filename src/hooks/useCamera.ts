@@ -65,6 +65,24 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
         }
     }, [currentFacingMode]);
 
+    const stopCamera = useCallback((): void => {
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+
+        setStatus({
+            isOn: false,
+            isInitialized: false,
+            error: null,
+            stream: null,
+        });
+    }, []);
+
     const startCamera = useCallback(async (): Promise<void> => {
         try {
             setStatus(prev => ({ ...prev, error: null }));
@@ -105,7 +123,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
                         resolve();
                     };
 
-                    const handleError = (event: Event) => {
+                    const handleError = () => {
                         video.removeEventListener('loadedmetadata', handleLoadedMetadata);
                         video.removeEventListener('error', handleError);
                         reject(new Error('Failed to load video'));
@@ -138,25 +156,7 @@ export function useCamera(options: UseCameraOptions = {}): UseCameraReturn {
                 streamRef.current = null;
             }
         }
-    }, [width, height, currentFacingMode]);
-
-    const stopCamera = useCallback((): void => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
-        }
-
-        setStatus({
-            isOn: false,
-            isInitialized: false,
-            error: null,
-            stream: null,
-        });
-    }, []);
+    }, [width, height, currentFacingMode, stopCamera]);
 
     const captureFrame = useCallback((): string | null => {
         if (!videoRef.current || !status.isOn) {

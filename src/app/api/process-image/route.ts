@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
         // For demo purposes, simulate HuggingFace API call with timeout
         // In production, replace this with actual HuggingFace API call
-        const result = await simulateHuggingFaceAPI(imageData);
+        const result = await simulateHuggingFaceAPI();
 
         const processingTimeMs = Date.now() - processingStartTime;
 
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Simulate HuggingFace API call
-async function simulateHuggingFaceAPI(imageData: string): Promise<HuggingFaceResponse> {
+async function simulateHuggingFaceAPI(): Promise<HuggingFaceResponse> {
     // Simulate processing time (1 minute as requested)
     await new Promise(resolve => setTimeout(resolve, 60000));
 
@@ -105,51 +105,4 @@ async function simulateHuggingFaceAPI(imageData: string): Promise<HuggingFaceRes
     */
 
     return { generated_text: randomResponse };
-}
-
-// Alternative implementation for actual HuggingFace API (Vision-to-Text models)
-async function callHuggingFaceVisionAPI(imageData: string): Promise<HuggingFaceResponse> {
-    try {
-        // Extract base64 data
-        const base64Data = imageData.split(',')[1];
-
-        const response = await fetch(process.env.HUGGINGFACE_API_URL!, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                inputs: {
-                    image: base64Data,
-                },
-                parameters: {
-                    max_new_tokens: 100,
-                    temperature: 0.7,
-                },
-            }),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HuggingFace API error: ${response.status} ${errorText}`);
-        }
-
-        const result = await response.json();
-
-        // Handle different response formats from different models
-        if (Array.isArray(result) && result.length > 0) {
-            return { generated_text: result[0].generated_text || result[0].text || 'No description available' };
-        } else if (result.generated_text) {
-            return { generated_text: result.generated_text };
-        } else if (result.text) {
-            return { generated_text: result.text };
-        } else {
-            return { generated_text: 'Unable to generate description for this image' };
-        }
-
-    } catch (error) {
-        console.error('HuggingFace Vision API error:', error);
-        throw new Error('Failed to process image with HuggingFace Vision API');
-    }
 }

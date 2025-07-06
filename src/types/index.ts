@@ -2,6 +2,13 @@
 
 export interface FaceDetectionResult {
     confidence: number;
+    isFacingCamera: boolean;
+    faceAngle: {
+        yaw: number;    // Left-right rotation
+        pitch: number;  // Up-down rotation
+        roll: number;   // Tilt rotation
+    };
+    frontalConfidence: number;
     bbox: {
         x: number;
         y: number;
@@ -37,6 +44,9 @@ export interface DatabaseResult {
 
 export interface FaceDetectionConfig {
     minDetectionConfidence: number;
+    minFrontalConfidence: number;
+    maxYawAngle: number;    // Maximum left-right rotation in degrees
+    maxPitchAngle: number;  // Maximum up-down rotation in degrees
     stabilityThreshold: number;
     captureDelay: number; // milliseconds
 }
@@ -48,7 +58,7 @@ export interface CameraStatus {
     stream: MediaStream | null;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
     success: boolean;
     data?: T;
     error?: string;
