@@ -20,14 +20,14 @@ export default function ResultsPanel({ results, onClear }: ResultsPanelProps) {
                 <Card.Header className="bg-success text-white">
                     <h5 className="mb-0">
                         <i className="bi bi-graph-up me-2"></i>
-                        Analysis Results
+                        Generated Profiles
                     </h5>
                 </Card.Header>
                 <Card.Body className="text-center py-5">
                     <i className="bi bi-graph-up text-muted" style={{ fontSize: '4rem' }}></i>
                     <p className="text-muted mt-3 mb-1">No results yet</p>
                     <small className="text-muted">
-                        Capture a face or upload an image to see analysis results here
+                        Capture a face or upload an image to see generated profiles here
                     </small>
                 </Card.Body>
             </Card>
@@ -39,7 +39,7 @@ export default function ResultsPanel({ results, onClear }: ResultsPanelProps) {
             <Card.Header className="bg-success text-white d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">
                     <i className="bi bi-graph-up me-2"></i>
-                    Analysis Results ({results.length})
+                    Generated Profiles ({results.length})
                 </h5>
                 <Button
                     variant="light"

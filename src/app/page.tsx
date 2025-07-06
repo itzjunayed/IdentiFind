@@ -235,21 +235,11 @@ export default function Home() {
         <Container>
           <Navbar.Brand href="#home">
             <i className="bi bi-camera-video me-2"></i>
-            Enhanced Face Detection & Analysis
+            IdentiFind
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" />
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto">
-              {/* Models Status Badge */}
-              <Badge
-                bg={modelsLoaded ? "success" : "warning"}
-                className="me-3 d-flex align-items-center"
-                style={{ fontSize: '0.8rem' }}
-              >
-                <i className={`bi bi-${modelsLoaded ? 'check-circle' : 'hourglass-split'} me-1`}></i>
-                AI Models: {modelsLoaded ? 'Ready' : 'Loading...'}
-              </Badge>
-
               <Button
                 variant={showHistory ? "light" : "outline-light"}
                 onClick={toggleHistory}
@@ -373,71 +363,6 @@ export default function Home() {
                   </Card.Body>
                 </Card>
               )}
-
-              {/* System Status Card */}
-              <Card className="mt-4">
-                <Card.Header>
-                  <h6 className="mb-0">
-                    <i className="bi bi-info-circle me-2"></i>
-                    System Status
-                  </h6>
-                </Card.Header>
-                <Card.Body>
-                  <Row className="g-3">
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">AI Models:</span>
-                        <Badge bg={modelsLoaded ? "success" : "warning"}>
-                          {modelsLoaded ? 'Ready' : 'Loading'}
-                        </Badge>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">Camera:</span>
-                        <Badge bg={isCameraOn && modelsLoaded ? "success" : "danger"}>
-                          {isCameraOn && modelsLoaded ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">Queue Length:</span>
-                        <Badge bg="primary">{queue.items.length}</Badge>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">Processing:</span>
-                        <Badge bg={queue.currentProcessingId ? "warning" : "secondary"}>
-                          {queue.currentProcessingId ? 'In Progress' : 'Idle'}
-                        </Badge>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">Completed:</span>
-                        <Badge bg="success">{completedResults.length}</Badge>
-                      </div>
-                    </Col>
-                    <Col sm={6}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <span className="text-muted">History:</span>
-                        <Badge bg="info">{history.length}</Badge>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  {/* Performance Info */}
-                  <hr className="my-3" />
-                  <div className="text-center">
-                    <small className="text-muted">
-                      <i className="bi bi-lightning-charge-fill text-warning me-1"></i>
-                      Enhanced with face-api.js for superior face detection accuracy
-                    </small>
-                  </div>
-                </Card.Body>
-              </Card>
             </Col>
           </Row>
         )}

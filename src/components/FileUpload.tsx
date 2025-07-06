@@ -140,8 +140,8 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
             {/* Drop Zone */}
             <Card
                 className={`border-2 border-dashed text-center ${isDragging
-                        ? 'border-primary bg-primary bg-opacity-10'
-                        : 'border-secondary'
+                    ? 'border-primary bg-primary bg-opacity-10'
+                    : 'border-secondary'
                     } ${isUploading ? 'opacity-50' : ''}`}
                 style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}
                 onClick={!isUploading ? handleClick : undefined}
@@ -222,20 +222,6 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
                         Choose File
                     </Button>
                 </Col>
-                <Col>
-                    <Button
-                        variant="outline-secondary"
-                        className="w-100"
-                        onClick={() => {
-                            setError(null);
-                            setSuccess(null);
-                        }}
-                        disabled={isUploading || (!error && !success)}
-                    >
-                        <i className="bi bi-x-circle me-2"></i>
-                        Clear
-                    </Button>
-                </Col>
             </Row>
 
             {/* Instructions */}
@@ -251,56 +237,6 @@ export default function FileUpload({ onFileUploaded }: FileUploadProps) {
                     <li>Images will be automatically processed and analyzed</li>
                 </ul>
             </Alert>
-
-            {/* Sample Images */}
-            <Card>
-                <Card.Header>
-                    <h6 className="mb-0">
-                        <i className="bi bi-images me-2"></i>
-                        Need test images?
-                    </h6>
-                </Card.Header>
-                <Card.Body>
-                    <p className="text-muted small mb-3">
-                        Generate sample face images for testing:
-                    </p>
-                    <Row className="g-2">
-                        <Col xs={4}>
-                            <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100"
-                                onClick={() => generateSampleImage('Sample 1')}
-                                disabled={isUploading}
-                            >
-                                Portrait 1
-                            </Button>
-                        </Col>
-                        <Col xs={4}>
-                            <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100"
-                                onClick={() => generateSampleImage('Sample 2')}
-                                disabled={isUploading}
-                            >
-                                Portrait 2
-                            </Button>
-                        </Col>
-                        <Col xs={4}>
-                            <Button
-                                variant="outline-primary"
-                                size="sm"
-                                className="w-100"
-                                onClick={() => generateSampleImage('Sample 3')}
-                                disabled={isUploading}
-                            >
-                                Portrait 3
-                            </Button>
-                        </Col>
-                    </Row>
-                </Card.Body>
-            </Card>
         </div>
     );
 }

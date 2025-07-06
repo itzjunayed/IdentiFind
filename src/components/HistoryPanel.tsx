@@ -98,7 +98,7 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
                         <Col>
                             <h2 className="mb-0">
                                 <i className="bi bi-clock-history me-2"></i>
-                                Analysis History
+                                Generated Profiles History
                             </h2>
                             <p className="mb-0 opacity-75">
                                 <Badge bg="light" text="dark">{history.length}</Badge> total results
@@ -159,7 +159,7 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
                         <i className="bi bi-archive text-muted" style={{ fontSize: '4rem' }}></i>
                         <h4 className="text-muted mt-3">No history found</h4>
                         <p className="text-muted">
-                            Start capturing faces to build your analysis history
+                            Start capturing faces to build your generated profiles history
                         </p>
                     </Card.Body>
                 </Card>
@@ -195,7 +195,7 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
                     </Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    Are you sure you want to delete this analysis result? This action cannot be undone.
+                    Are you sure you want to delete this profile? This action cannot be undone.
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>
@@ -238,7 +238,7 @@ function HistoryCard({ item, onSelect, onDelete, isDeleting }: HistoryCardProps)
             <div style={{ height: '200px', overflow: 'hidden', position: 'relative' }}>
                 <Image
                     src={item.imageData}
-                    alt="Analysis result"
+                    alt="Person pictures"
                     fill
                     className="object-fit-cover"
                     style={{ cursor: 'pointer' }}
@@ -284,11 +284,9 @@ function HistoryCard({ item, onSelect, onDelete, isDeleting }: HistoryCardProps)
                         onClick={onDelete}
                         disabled={isDeleting}
                     >
-                        {isDeleting ? (
-                            <Spinner animation="border" size="sm" />
-                        ) : (
-                            <i className="bi bi-trash"></i>
-                        )}
+
+                        <i className="bi bi-trash"></i>
+                        Delete
                     </Button>
                 </div>
             </Card.Body>
@@ -316,7 +314,7 @@ function HistoryDetailModal({ item, onClose }: HistoryDetailModalProps) {
             <Modal.Header closeButton>
                 <Modal.Title>
                     <i className="bi bi-info-circle me-2"></i>
-                    Analysis Details
+                    Generated Profile Details
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
@@ -326,7 +324,7 @@ function HistoryDetailModal({ item, onClose }: HistoryDetailModalProps) {
                         <div style={{ position: 'relative', width: '100%', height: '300px' }}>
                             <Image
                                 src={item.imageData}
-                                alt="Analysis result"
+                                alt="Profile Information"
                                 fill
                                 className="rounded border object-fit-cover"
                                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -348,7 +346,7 @@ function HistoryDetailModal({ item, onClose }: HistoryDetailModalProps) {
                             <Card.Header>
                                 <h6 className="mb-0">
                                     <i className="bi bi-chat-quote me-2"></i>
-                                    Analysis Result
+                                    Profile Information
                                 </h6>
                             </Card.Header>
                             <Card.Body>

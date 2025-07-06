@@ -127,13 +127,6 @@ export class FaceDetectionManager {
             canvasCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
             detectionCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
 
-            // Debug: Draw a test rectangle to verify canvas is working
-            canvasCtx.strokeStyle = '#FF0000';
-            canvasCtx.lineWidth = 2;
-            canvasCtx.strokeRect(10, 10, 100, 50);
-            canvasCtx.fillStyle = '#FF0000';
-            canvasCtx.font = '16px Arial';
-            canvasCtx.fillText('Video Feed Active', 20, 35);
 
             // Detect faces with landmarks
             const detections = await this.faceapi
