@@ -459,10 +459,9 @@ export const createTargetRegion = (
     canvasWidth: number,
     canvasHeight: number
 ) => {
-    // Always use consistent dimensions for the target region
-    // regardless of actual canvas size in DOM
-    const baseWidth = 640;
-    const baseHeight = 480;
+    // Use the actual canvas dimensions passed as parameters
+    const baseWidth = canvasWidth;
+    const baseHeight = canvasHeight;
 
     // Calculate region size based on the smaller dimension to ensure it fits
     const minDimension = Math.min(baseWidth, baseHeight);
