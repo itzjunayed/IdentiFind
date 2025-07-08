@@ -22,14 +22,11 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
     const faceDetectionManagerRef = useRef<FaceDetectionManager | null>(null);
-    const restPeriodRef = useRef<NodeJS.Timeout | null>(null);
     const faceStableTimeRef = useRef<number | null>(null);
 
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
-    const [isInRestPeriod, setIsInRestPeriod] = useState(false);
-    const [restCountdown, setRestCountdown] = useState<number | null>(null);
 
     const config: FaceDetectionConfig = useMemo(() => ({
         minDetectionConfidence: 0.5,
@@ -155,7 +152,7 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
         const faceInTargetRegion = validFacesInRegion.length > 0;
 
         // CHANGE FROM 1000ms TO 3000ms (3 seconds)
-        if (faceInTargetRegion && !isCapturing && !isInRestPeriod) {
+        if (faceInTargetRegion && !isCapturing) {
             // ONLY start new timer if we don't have one already
             if (!faceStableTimeRef.current) {
                 console.log('🎯 NEW Perfect alignment detected - starting 3-second countdown!');
@@ -166,31 +163,25 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 const elapsed = Date.now() - faceStableTimeRef.current;
                 console.log(`⏱️ CONTINUING timer: ${elapsed}ms / 3000ms`);
 
-                if (elapsed >= 3000) { // CHANGED: 3 seconds instead of 1 second
+                if (elapsed >= 3000) { // 3 seconds complete
                     console.log('📸 ✅ 3 SECONDS COMPLETE - CAPTURING NOW!');
 
-                    // PREVENT MULTIPLE CAPTURES - Check if already processing
                     if (!isCapturing) {
                         setIsCapturing(true);
-
-                        // IMMEDIATE RESET to prevent multiple triggers
                         faceStableTimeRef.current = null;
 
-                        // Perform capture with debouncing
                         const performSingleCapture = async () => {
                             try {
                                 console.log('📸 Starting single capture...');
 
-                                // Check if face detection manager is still available
                                 if (!faceDetectionManagerRef.current) {
                                     throw new Error('Face detection manager not available');
                                 }
 
-                                // Capture ONLY the target region without overlays
                                 const imageData = faceDetectionManagerRef.current.captureTargetRegion(targetRegion);
                                 if (imageData) {
                                     console.log('✅ Target region captured successfully - sending to queue');
-                                    onImageCaptured(imageData); // This should only be called ONCE
+                                    onImageCaptured(imageData);
                                 } else {
                                     throw new Error('Failed to capture target region');
                                 }
@@ -201,7 +192,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                                     if (flashCtx) {
                                         flashCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                                         flashCtx.fillRect(0, 0, flashCtx.canvas.width, flashCtx.canvas.height);
-
                                         setTimeout(() => {
                                             flashCtx.clearRect(0, 0, flashCtx.canvas.width, flashCtx.canvas.height);
                                         }, 300);
@@ -212,46 +202,21 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                                 console.error('❌ Error capturing image:', error);
                                 setError('Failed to capture image');
                             } finally {
-                                // Start MANDATORY 5-second rest period
-                                console.log('😴 STARTING MANDATORY 5-second rest period...');
-                                setIsInRestPeriod(true);
-                                setIsCapturing(false);
-
-                                let restTime = 5;
-                                setRestCountdown(restTime);
-
-                                // Clear any existing rest timer
-                                if (restPeriodRef.current) {
-                                    clearInterval(restPeriodRef.current);
-                                }
-
-                                restPeriodRef.current = setInterval(() => {
-                                    restTime--;
-                                    setRestCountdown(restTime);
-                                    console.log(`😴 Rest period: ${restTime}s remaining`);
-
-                                    if (restTime <= 0) {
-                                        console.log('✅ Rest period finished - ready to detect again');
-                                        if (restPeriodRef.current) {
-                                            clearInterval(restPeriodRef.current);
-                                            restPeriodRef.current = null;
-                                        }
-                                        setIsInRestPeriod(false);
-                                        setRestCountdown(null);
-                                        console.log('🎯 Detection system REACTIVATED');
-                                    }
+                                // Quick reset - no rest period
+                                setTimeout(() => {
+                                    setIsCapturing(false);
+                                    console.log('🎯 Detection system ready again');
                                 }, 1000);
                             }
                         };
 
-                        // Execute capture with delay to prevent race conditions
                         setTimeout(performSingleCapture, 100);
                     }
                 }
             }
         } else if (!faceInTargetRegion) {
             // ONLY reset if we were tracking and now lost the face
-            if (faceStableTimeRef.current && !isCapturing && !isInRestPeriod) {
+            if (faceStableTimeRef.current && !isCapturing) {
                 console.log('⏳ Face alignment lost - resetting stability timer');
                 faceStableTimeRef.current = null;
             }
@@ -383,7 +348,7 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             ctx.fillText(`Timer: ${elapsed}ms / 3000ms`, 15, canvas.height - 100);
         }
 
-    }, [isInRestPeriod, isCapturing, targetRegion, config.minDetectionConfidence, config.maxYawAngle, config.maxPitchAngle, onImageCaptured]);
+    }, [isCapturing, targetRegion, config.minDetectionConfidence, config.maxYawAngle, config.maxPitchAngle, onImageCaptured]);
 
     const initializeCamera = useCallback(async () => {
         if (!videoRef.current || !canvasRef.current || !isActive) return;
@@ -456,12 +421,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
     }, [isActive, config, handleFaceDetectionResults, checkModelsLoaded]);
 
     const captureImage = useCallback(async () => {
-        if (isInRestPeriod) {
-            console.log('⏳ Manual capture BLOCKED - in rest period');
-            setError(`Manual capture blocked - wait ${restCountdown}s`);
-            return;
-        }
-
         if (!faceDetectionManagerRef.current || !canvasRef.current || isCapturing) {
             if (isCapturing) {
                 console.log('⏳ Manual capture BLOCKED - already capturing');
@@ -477,8 +436,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
         console.log('📸 Manual capture initiated...');
         setIsCapturing(true);
-
-        // IMMEDIATE RESET to prevent auto-capture interference
         faceStableTimeRef.current = null;
 
         try {
@@ -495,9 +452,7 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 throw new Error('Video has no dimensions');
             }
 
-            // Capture ONLY the target region without overlays
             const imageData = faceDetectionManagerRef.current.captureTargetRegion(targetRegion);
-
             if (!imageData) {
                 throw new Error('Failed to capture target region - please try again');
             }
@@ -540,36 +495,13 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 }
             }
         } finally {
-            // MANDATORY 5-second rest after manual capture too
-            console.log('😴 Starting 5-second rest after manual capture...');
-            setIsInRestPeriod(true);
-            setIsCapturing(false);
-
-            let restTime = 5;
-            setRestCountdown(restTime);
-
-            // Clear any existing rest timer
-            if (restPeriodRef.current) {
-                clearInterval(restPeriodRef.current);
-            }
-
-            restPeriodRef.current = setInterval(() => {
-                restTime--;
-                setRestCountdown(restTime);
-                console.log(`😴 Manual capture rest: ${restTime}s remaining`);
-
-                if (restTime <= 0) {
-                    console.log('✅ Manual capture rest finished');
-                    if (restPeriodRef.current) {
-                        clearInterval(restPeriodRef.current);
-                        restPeriodRef.current = null;
-                    }
-                    setIsInRestPeriod(false);
-                    setRestCountdown(null);
-                }
+            // Quick reset - no rest period
+            setTimeout(() => {
+                setIsCapturing(false);
+                console.log('🎯 Manual capture ready again');
             }, 1000);
         }
-    }, [isCapturing, isInRestPeriod, restCountdown, onImageCaptured, targetRegion]);
+    }, [isCapturing, onImageCaptured, targetRegion]);
 
     const stopCamera = useCallback(() => {
         console.log('🛑 Stopping camera');
@@ -584,16 +516,8 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             videoRef.current.srcObject = null;
         }
 
-        // Clear all timers
-        if (restPeriodRef.current) {
-            clearInterval(restPeriodRef.current);
-            restPeriodRef.current = null;
-        }
-
         setIsInitialized(false);
         faceStableTimeRef.current = null;
-        setIsInRestPeriod(false);
-        setRestCountdown(null);
         setIsCapturing(false);
     }, []);
 
@@ -613,10 +537,6 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
         return () => {
             isMounted = false;
-            // Clean up rest period only
-            if (restPeriodRef.current) {
-                clearInterval(restPeriodRef.current);
-            }
         };
     }, [isActive, isInitialized, initializeCamera, stopCamera]);
 
@@ -665,25 +585,25 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 )}
 
                 <div className="text-center">
-                    <div className="position-relative d-inline-block">
-                        {/* Video element for debugging */}
+                    <div className="position-relative d-inline-block w-100" style={{ maxWidth: '100%' }}>
+                        {/* Video element */}
                         <video
                             ref={videoRef}
                             autoPlay
                             playsInline
                             muted
-                            className={isInitialized ? "d-none" : "border border-danger"}
+                            className={isInitialized ? "d-none" : "border border-danger w-100"}
                             width={640}
                             height={480}
                             style={{ maxWidth: '100%', height: 'auto' }}
                         />
 
-                        {/* Main canvas for video display */}
+                        {/* Main canvas */}
                         <canvas
                             ref={canvasRef}
                             width={640}
                             height={480}
-                            className="border border-2 border-secondary rounded"
+                            className="border border-2 border-primary rounded w-100"
                             style={{
                                 maxWidth: '100%',
                                 height: 'auto',
@@ -692,12 +612,12 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                             }}
                         />
 
-                        {/* Overlay canvas for UI elements */}
+                        {/* Overlay canvas */}
                         <canvas
                             ref={overlayCanvasRef}
                             width={640}
                             height={480}
-                            className="position-absolute top-0 start-0"
+                            className="position-absolute top-0 start-0 w-100"
                             style={{
                                 maxWidth: '100%',
                                 height: 'auto',
@@ -748,16 +668,11 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                     <Button
                         variant="outline-primary"
                         onClick={captureImage}
-                        disabled={!isInitialized || isCapturing || isInRestPeriod}
+                        disabled={!isInitialized || isCapturing}
                         size="sm"
                     >
                         <i className="bi bi-camera me-1"></i>
-                        {isInRestPeriod
-                            ? `Wait ${restCountdown}s`
-                            : isCapturing
-                                ? 'Capturing...'
-                                : 'Manual Capture'
-                        }
+                        {isCapturing ? 'Capturing...' : 'Manual Capture'}
                     </Button>
                 </div>
             </Card.Body>

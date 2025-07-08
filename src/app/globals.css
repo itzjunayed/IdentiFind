@@ -242,6 +242,18 @@
   background-color: rgba(0, 0, 0, 0.5);
 }
 
+/* Enhanced buttons */
+.btn {
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
+}
+
 /* Button variants - Converted from Tailwind to standard CSS */
 .btn-primary {
   background-color: #0d6efd;
@@ -265,28 +277,45 @@
   cursor: not-allowed;
 }
 
-/* Card styles - Converted from Tailwind to standard CSS */
+/* Enhanced responsive utilities */
+.sticky-top {
+  position: sticky;
+  top: 1rem;
+  z-index: 10;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(135deg, #198754 0%, #146c43 100%);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(135deg, #0dcaf0 0%, #31d2f2 100%);
+}
+
+/* Enhanced card styling */
 .card {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  padding: 1.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.125);
+  border: none;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-}
-
-.card-title {
-  font-size: 1.25rem;
+  border: none;
   font-weight: 600;
-  color: #212529;
 }
 
 /* Form styles - Converted from Tailwind to standard CSS */
@@ -332,6 +361,57 @@
 @media (min-width: 641px) {
   .mobile-only {
     display: none;
+  }
+}
+
+/* Responsive text sizing */
+@media (max-width: 576px) {
+  .display-1 {
+    font-size: 2.5rem;
+  }
+
+  .display-2 {
+    font-size: 2rem;
+  }
+
+  .display-3 {
+    font-size: 1.75rem;
+  }
+
+  .display-4 {
+    font-size: 1.5rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .card-header {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* Pulse animation for live indicators */
+@keyframes pulse-live {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.pulse-live {
+  animation: pulse-live 2s infinite;
+}
+
+/* Enhanced scrollbar for mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
   }
 }
 

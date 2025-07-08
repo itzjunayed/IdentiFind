@@ -93,15 +93,18 @@ export default function HistoryPanel({ history, isLoading, onRefresh }: HistoryP
         <div className="d-grid gap-4">
             {/* Header */}
             <Card>
-                <Card.Header className="bg-primary text-white">
+                <Card.Header className="bg-gradient-primary text-white border-0">
                     <Row className="align-items-center">
                         <Col>
-                            <h2 className="mb-0">
+                            <h2 className="mb-1 fw-bold">
                                 <i className="bi bi-clock-history me-2"></i>
                                 Generated Profiles History
                             </h2>
                             <p className="mb-0 opacity-75">
-                                <Badge bg="light" text="dark">{history.length}</Badge> total results
+                                <Badge bg="light" text="dark" className="rounded-pill">
+                                    <i className="bi bi-collection me-1"></i>
+                                    {history.length} total results
+                                </Badge>
                             </p>
                         </Col>
                         <Col xs="auto">

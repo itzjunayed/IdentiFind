@@ -302,11 +302,11 @@ export default function Home() {
             onRefresh={loadHistory}
           />
         ) : (
-          <Row>
+          <Row className="g-3 g-md-4">
             {/* Left Panel - Results & Queue */}
-            <Col lg={6} className="mb-4">
-              <Row>
-                <Col xs={12} className="mb-4">
+            <Col xl={6} lg={6} className="order-2 order-lg-1">
+              <Row className="g-3">
+                <Col xs={12}>
                   <ResultsPanel
                     results={completedResults}
                     onClear={handleClearResults}
@@ -322,54 +322,56 @@ export default function Home() {
             </Col>
 
             {/* Right Panel - Camera/Upload */}
-            <Col lg={6} className="mb-4">
-              {isCameraOn && modelsLoaded ? (
-                <Camera
-                  onImageCaptured={handleImageCaptured}
-                  isActive={true}
-                />
-              ) : (
-                <Card className="h-100">
-                  <Card.Header className={`${!modelsLoaded ? 'bg-info' : 'bg-warning'} text-${!modelsLoaded ? 'white' : 'dark'}`}>
-                    <h5 className="mb-0">
-                      <i className={`bi bi-${!modelsLoaded ? 'hourglass-split' : 'camera-video-off'} me-2`}></i>
-                      {!modelsLoaded ? 'AI Models Loading...' : 'Camera is Off'}
-                    </h5>
-                  </Card.Header>
-                  <Card.Body>
-                    {!modelsLoaded ? (
-                      <div className="text-center py-4">
-                        <div className="spinner-border text-primary mb-3" role="status">
-                          <span className="visually-hidden">Loading...</span>
+            <Col xl={6} lg={6} className="order-1 order-lg-2">
+              <div className="sticky-top" style={{ top: '1rem' }}>
+                {isCameraOn && modelsLoaded ? (
+                  <Camera
+                    onImageCaptured={handleImageCaptured}
+                    isActive={true}
+                  />
+                ) : (
+                  <Card className="h-100 shadow-sm">
+                    <Card.Header className={`${!modelsLoaded ? 'bg-info' : 'bg-warning'} text-${!modelsLoaded ? 'white' : 'dark'}`}>
+                      <h5 className="mb-0">
+                        <i className={`bi bi-${!modelsLoaded ? 'hourglass-split' : 'camera-video-off'} me-2`}></i>
+                        {!modelsLoaded ? 'AI Models Loading...' : 'Camera is Off'}
+                      </h5>
+                    </Card.Header>
+                    <Card.Body>
+                      {!modelsLoaded ? (
+                        <div className="text-center py-4">
+                          <div className="spinner-border text-primary mb-3" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <h6>Loading Face Detection Models</h6>
+                          <p className="text-muted mb-4">
+                            This usually takes 10-30 seconds on first visit. The models are being downloaded
+                            and initialized for optimal face detection performance.
+                          </p>
+                          <div className="progress mb-3" style={{ height: '8px' }}>
+                            <div
+                              className="progress-bar progress-bar-striped progress-bar-animated"
+                              role="progressbar"
+                              style={{ width: '100%' }}
+                            ></div>
+                          </div>
+                          <small className="text-muted">
+                            Please wait while we prepare the enhanced face detection system...
+                          </small>
                         </div>
-                        <h6>Loading Face Detection Models</h6>
-                        <p className="text-muted mb-4">
-                          This usually takes 10-30 seconds on first visit. The models are being downloaded
-                          and initialized for optimal face detection performance.
-                        </p>
-                        <div className="progress mb-3" style={{ height: '8px' }}>
-                          <div
-                            className="progress-bar progress-bar-striped progress-bar-animated"
-                            role="progressbar"
-                            style={{ width: '100%' }}
-                          ></div>
-                        </div>
-                        <small className="text-muted">
-                          Please wait while we prepare the enhanced face detection system...
-                        </small>
-                      </div>
-                    ) : (
-                      <>
-                        <p className="text-muted">
-                          Upload an image to analyze, or turn on the camera to capture faces.
-                          Queue processing will continue in the background.
-                        </p>
-                        <FileUpload onFileUploaded={handleFileUploaded} />
-                      </>
-                    )}
-                  </Card.Body>
-                </Card>
-              )}
+                      ) : (
+                        <>
+                          <p className="text-muted">
+                            Upload an image to analyze, or turn on the camera to capture faces.
+                            Queue processing will continue in the background.
+                          </p>
+                          <FileUpload onFileUploaded={handleFileUploaded} />
+                        </>
+                      )}
+                    </Card.Body>
+                  </Card>
+                )}
+              </div>
             </Col>
           </Row>
         )}

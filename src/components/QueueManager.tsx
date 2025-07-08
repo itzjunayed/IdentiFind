@@ -19,8 +19,8 @@ export default function QueueManager({ queue, onClear }: QueueManagerProps) {
 
     return (
         <Card>
-            <Card.Header className="bg-warning text-dark d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
+            <Card.Header className="bg-gradient-warning text-dark border-0 d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-bold">
                     <i className="bi bi-list-task me-2"></i>
                     Processing Queue ({queue.items.length})
                 </h5>

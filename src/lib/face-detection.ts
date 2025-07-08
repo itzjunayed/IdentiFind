@@ -470,8 +470,24 @@ export const createTargetRegion = (
     canvasWidth: number,
     canvasHeight: number
 ) => {
-    const regionWidth = canvasWidth * 0.4; // Slightly larger for better detection
-    const regionHeight = canvasHeight * 0.5;
+    // Get device type based on screen width
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+
+    let regionMultiplier = 0.4; // Default for desktop
+
+    if (screenWidth < 576) { // Mobile
+        regionMultiplier = 0.7;
+    } else if (screenWidth < 768) { // Small tablet
+        regionMultiplier = 0.6;
+    } else if (screenWidth < 992) { // Tablet
+        regionMultiplier = 0.5;
+    } else if (screenWidth < 1200) { // Small desktop
+        regionMultiplier = 0.45;
+    }
+
+    const regionWidth = canvasWidth * regionMultiplier;
+    const regionHeight = canvasHeight * (regionMultiplier + 0.1); // Slightly taller
+
     return {
         x: (canvasWidth - regionWidth) / 2,
         y: (canvasHeight - regionHeight) / 2,

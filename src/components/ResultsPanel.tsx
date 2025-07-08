@@ -36,16 +36,12 @@ export default function ResultsPanel({ results, onClear }: ResultsPanelProps) {
 
     return (
         <Card>
-            <Card.Header className="bg-success text-white d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
+            <Card.Header className="bg-gradient-success text-white border-0 d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-bold">
                     <i className="bi bi-graph-up me-2"></i>
                     Generated Profiles ({results.length})
                 </h5>
-                <Button
-                    variant="light"
-                    size="sm"
-                    onClick={onClear}
-                >
+                <Button variant="light" size="sm" onClick={onClear} className="rounded-pill">
                     <i className="bi bi-trash me-1"></i>
                     Clear All
                 </Button>
