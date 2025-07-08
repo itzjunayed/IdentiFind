@@ -433,3 +433,43 @@
     color: #f8f9fa;
   }
 }
+
+/* Responsive canvas styling */
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure aspect ratio is maintained */
+.camera-container {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.camera-container canvas,
+.camera-container video {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4/3;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .camera-container {
+    max-width: 100%;
+    padding: 0 10px;
+  }
+
+  /* Ensure text is readable on smaller screens */
+  canvas {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  canvas {
+    min-height: 250px;
+  }
+}

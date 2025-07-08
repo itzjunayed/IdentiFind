@@ -94,34 +94,27 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
+        // Set canvas dimensions
+        canvas.width = 640;
+        canvas.height = 480;
+
         // Clear overlay
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Check if ANY face is ENTIRELY within target region AND facing camera
+        // Check if face is in target region
         const validFacesInRegion = results.filter(detection => {
             const { bbox } = detection;
 
-            // Scale target region to match canvas dimensions
-            const scaleX = canvas.width / 640;
-            const scaleY = canvas.height / 480;
-
-            const scaledRegion = {
-                x: targetRegion.x * scaleX,
-                y: targetRegion.y * scaleY,
-                width: targetRegion.width * scaleX,
-                height: targetRegion.height * scaleY
-            };
-
-            // REQUIREMENT 1: ENTIRE face must be within the region
+            // Use direct coordinates since we're now using consistent canvas dimensions
             const faceLeft = bbox.x;
             const faceRight = bbox.x + bbox.width;
             const faceTop = bbox.y;
             const faceBottom = bbox.y + bbox.height;
 
-            const targetLeft = scaledRegion.x;
-            const targetRight = scaledRegion.x + scaledRegion.width;
-            const targetTop = scaledRegion.y;
-            const targetBottom = scaledRegion.y + scaledRegion.height;
+            const targetLeft = targetRegion.x;
+            const targetRight = targetRegion.x + targetRegion.width;
+            const targetTop = targetRegion.y;
+            const targetBottom = targetRegion.y + targetRegion.height;
 
             const faceFullyInRegion = (
                 faceLeft >= targetLeft &&
@@ -130,19 +123,14 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 faceBottom <= targetBottom
             );
 
-            // REQUIREMENT 2: Face must be facing camera
             const isFacingCamera = detection.isFacingCamera;
-
-            // REQUIREMENT 3: Good detection confidence
             const hasGoodDetection = detection.confidence >= config.minDetectionConfidence;
 
-            // REQUIREMENT 4: Face should be reasonable size
             const faceArea = bbox.width * bbox.height;
-            const regionArea = scaledRegion.width * scaledRegion.height;
+            const regionArea = targetRegion.width * targetRegion.height;
             const sizeRatio = faceArea / regionArea;
             const isGoodSize = sizeRatio >= 0.08 && sizeRatio <= 0.8;
 
-            // REQUIREMENT 5: Face angle constraints
             const isGoodAngle = Math.abs(detection.faceAngle.yaw) <= config.maxYawAngle &&
                 Math.abs(detection.faceAngle.pitch) <= config.maxPitchAngle;
 
@@ -222,30 +210,26 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             }
         }
 
-        // Draw target region with enhanced visual feedback
-        drawTargetRegion(canvas, {
-            x: targetRegion.x * (canvas.width / 640),
-            y: targetRegion.y * (canvas.height / 480),
-            width: targetRegion.width * (canvas.width / 640),
-            height: targetRegion.height * (canvas.height / 480)
-        }, faceInTargetRegion);
+        // Draw target region
+        drawTargetRegion(canvas, targetRegion, faceInTargetRegion);
 
-        // Calculate progress for display - CHANGED to 3 seconds
+        // Calculate progress for display
         let progress = 0;
         let progressText = '';
         if (faceStableTimeRef.current && faceInTargetRegion && !isCapturing) {
             const elapsed = Date.now() - faceStableTimeRef.current;
-            progress = Math.min(elapsed / 3000, 1); // CHANGED: 3000ms instead of 1000ms
-            const remaining = Math.max(0, 3000 - elapsed); // CHANGED: 3000ms
+            progress = Math.min(elapsed / 3000, 1);
+            const remaining = Math.max(0, 3000 - elapsed);
             progressText = remaining > 0 ? `${Math.ceil(remaining / 1000)}s` : 'NOW!';
         }
 
-        // Draw instruction text with progress info
+        // Draw instruction text with responsive font sizes
+        const fontSize = Math.max(14, Math.min(20, canvas.width * 0.03));
         ctx.fillStyle = faceInTargetRegion ? '#00FF00' : '#FFD700';
-        ctx.font = 'bold 18px Arial';
+        ctx.font = `bold ${fontSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
 
         let instruction = 'Position your face in the frame & look directly at camera';
         if (results.length === 0) {
@@ -273,22 +257,21 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
             }
         }
 
-        // Draw text with outline for better visibility
-        ctx.strokeText(instruction, canvas.width / 2, 35);
-        ctx.fillText(instruction, canvas.width / 2, 35);
+        // Draw text with outline
+        ctx.strokeText(instruction, canvas.width / 2, 30);
+        ctx.fillText(instruction, canvas.width / 2, 30);
 
-        // PROGRESS BAR - CHANGED to 3 seconds
+        // Progress bar
         if (faceStableTimeRef.current && faceInTargetRegion && !isCapturing) {
-            const barWidth = 300;
-            const barHeight = 20;
+            const barWidth = Math.min(300, canvas.width * 0.8);
+            const barHeight = 16;
             const barX = (canvas.width - barWidth) / 2;
-            const barY = canvas.height - 120;
+            const barY = canvas.height - 100;
 
             // Progress bar background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(barX - 5, barY - 5, barWidth + 10, barHeight + 10);
+            ctx.fillRect(barX - 3, barY - 3, barWidth + 6, barHeight + 6);
 
-            // Progress bar background
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
@@ -304,51 +287,37 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
 
             // Progress text
             ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
+            ctx.font = `bold ${Math.max(12, fontSize * 0.8)}px Arial`;
             ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1;
             const progressPercent = Math.round(progress * 100);
-            ctx.strokeText(`Capturing Progress: ${progressPercent}%`, canvas.width / 2, barY - 10);
-            ctx.fillText(`Capturing Progress: ${progressPercent}%`, canvas.width / 2, barY - 10);
-
-            // Animated pulse effect when almost ready
-            if (progress > 0.8) {
-                const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-                ctx.shadowColor = '#00FF00';
-                ctx.shadowBlur = 15 * pulse;
-                ctx.strokeRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
-                ctx.shadowBlur = 0;
-            }
+            ctx.strokeText(`Capturing Progress: ${progressPercent}%`, canvas.width / 2, barY - 8);
+            ctx.fillText(`Capturing Progress: ${progressPercent}%`, canvas.width / 2, barY - 8);
         }
 
-        // Enhanced face count and status info
+        // Enhanced face info display
         const validFaces = validFacesInRegion.length;
         const totalFaces = results.length;
 
-        ctx.font = '16px Arial';
+        const infoFontSize = Math.max(10, Math.min(14, canvas.width * 0.025));
+        ctx.font = `${infoFontSize}px Arial`;
         ctx.textAlign = 'left';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(10, canvas.height - 80, 300, 70);
+
+        const infoBoxWidth = Math.min(280, canvas.width * 0.8);
+        const infoBoxHeight = 60;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(8, canvas.height - infoBoxHeight - 8, infoBoxWidth, infoBoxHeight);
 
         ctx.fillStyle = validFaces > 0 ? '#00FF00' : (totalFaces > 0 ? '#FFD700' : '#FF6B6B');
-        ctx.fillText(`Faces detected: ${totalFaces}`, 15, canvas.height - 60);
-        ctx.fillText(`Perfect alignment: ${validFaces}`, 15, canvas.height - 40);
+        ctx.fillText(`Faces detected: ${totalFaces}`, 15, canvas.height - 45);
+        ctx.fillText(`Perfect alignment: ${validFaces}`, 15, canvas.height - 28);
 
         if (results.length > 0) {
             const avgConfidence = results.reduce((sum, r) => sum + r.confidence, 0) / results.length;
-            ctx.fillText(`Avg confidence: ${(avgConfidence * 100).toFixed(0)}%`, 15, canvas.height - 20);
+            ctx.fillText(`Avg confidence: ${(avgConfidence * 100).toFixed(0)}%`, 15, canvas.height - 11);
         }
 
-        // Debug timer info - CHANGED to show 3000ms target
-        if (faceStableTimeRef.current) {
-            const elapsed = Date.now() - faceStableTimeRef.current;
-            ctx.fillStyle = '#FFFF00';
-            ctx.font = '12px Arial';
-            ctx.fillText(`Timer: ${elapsed}ms / 3000ms`, 15, canvas.height - 100);
-        }
-
-    }, [isCapturing, targetRegion, config.minDetectionConfidence, config.maxYawAngle, config.maxPitchAngle, onImageCaptured]);
+    }, [isCapturing, targetRegion, config, onImageCaptured]);
 
     const initializeCamera = useCallback(async () => {
         if (!videoRef.current || !canvasRef.current || !isActive) return;
@@ -585,44 +554,44 @@ export default function Camera({ onImageCaptured, isActive }: CameraProps) {
                 )}
 
                 <div className="text-center">
-                    <div className="position-relative d-inline-block w-100" style={{ maxWidth: '100%' }}>
-                        {/* Video element */}
+                    <div className="position-relative d-inline-block" style={{ width: '100%', maxWidth: '640px' }}>
+                        {/* Video element for debugging */}
                         <video
                             ref={videoRef}
                             autoPlay
                             playsInline
                             muted
-                            className={isInitialized ? "d-none" : "border border-danger w-100"}
-                            width={640}
-                            height={480}
-                            style={{ maxWidth: '100%', height: 'auto' }}
-                        />
-
-                        {/* Main canvas */}
-                        <canvas
-                            ref={canvasRef}
-                            width={640}
-                            height={480}
-                            className="border border-2 border-primary rounded w-100"
+                            className={isInitialized ? "d-none" : "border border-danger"}
                             style={{
-                                maxWidth: '100%',
+                                width: '100%',
                                 height: 'auto',
-                                backgroundColor: '#000',
-                                display: isInitialized ? 'block' : 'none'
+                                aspectRatio: '4/3'
                             }}
                         />
 
-                        {/* Overlay canvas */}
+                        {/* Main canvas for video display */}
+                        <canvas
+                            ref={canvasRef}
+                            className="border border-2 border-primary rounded"
+                            style={{
+                                width: '100%',
+                                height: 'auto',
+                                backgroundColor: '#000',
+                                display: isInitialized ? 'block' : 'none',
+                                aspectRatio: '4/3'
+                            }}
+                        />
+
+                        {/* Overlay canvas for UI elements */}
                         <canvas
                             ref={overlayCanvasRef}
-                            width={640}
-                            height={480}
-                            className="position-absolute top-0 start-0 w-100"
+                            className="position-absolute top-0 start-0"
                             style={{
-                                maxWidth: '100%',
+                                width: '100%',
                                 height: 'auto',
                                 pointerEvents: 'none',
-                                display: isInitialized ? 'block' : 'none'
+                                display: isInitialized ? 'block' : 'none',
+                                aspectRatio: '4/3'
                             }}
                         />
 

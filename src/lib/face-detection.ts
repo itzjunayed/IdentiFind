@@ -135,7 +135,6 @@ export class FaceDetectionManager {
         try {
             // Ensure video is ready and playing
             if (this.videoElement.readyState < 2 || this.videoElement.paused) {
-                console.log('[FaceDetection] Video not ready, readyState:', this.videoElement.readyState, 'paused:', this.videoElement.paused);
                 this.animationFrameId = requestAnimationFrame(() => this.detectFaces());
                 return;
             }
@@ -145,7 +144,6 @@ export class FaceDetectionManager {
             const videoHeight = this.videoElement.videoHeight;
 
             if (videoWidth === 0 || videoHeight === 0) {
-                console.log('[FaceDetection] Waiting for video dimensions...', videoWidth, 'x', videoHeight);
                 this.animationFrameId = requestAnimationFrame(() => this.detectFaces());
                 return;
             }
@@ -155,26 +153,28 @@ export class FaceDetectionManager {
             const detectionCtx = this.detectionCanvas.getContext('2d');
 
             if (!canvasCtx || !detectionCtx) {
-                console.log('[FaceDetection] Canvas context not available');
                 this.animationFrameId = requestAnimationFrame(() => this.detectFaces());
                 return;
             }
 
-            // Update canvas sizes to match video
-            this.canvasElement.width = videoWidth;
-            this.canvasElement.height = videoHeight;
-            this.detectionCanvas.width = videoWidth;
-            this.detectionCanvas.height = videoHeight;
+            // Set canvas dimensions to match video
+            const canvasWidth = 640;
+            const canvasHeight = 480;
+
+            this.canvasElement.width = canvasWidth;
+            this.canvasElement.height = canvasHeight;
+            this.detectionCanvas.width = canvasWidth;
+            this.detectionCanvas.height = canvasHeight;
 
             // Clear both canvases
-            canvasCtx.clearRect(0, 0, videoWidth, videoHeight);
-            detectionCtx.clearRect(0, 0, videoWidth, videoHeight);
+            canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+            detectionCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-            // Draw video frame to both canvases
-            canvasCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
-            detectionCtx.drawImage(this.videoElement, 0, 0, videoWidth, videoHeight);
+            // Draw video frame to both canvases with proper scaling
+            canvasCtx.drawImage(this.videoElement, 0, 0, canvasWidth, canvasHeight);
+            detectionCtx.drawImage(this.videoElement, 0, 0, canvasWidth, canvasHeight);
 
-            // Detect faces with landmarks
+            // Detect faces
             const detections = await this.faceapi
                 .detectAllFaces(this.videoElement, new this.faceapi.TinyFaceDetectorOptions({
                     inputSize: 416,
@@ -183,15 +183,25 @@ export class FaceDetectionManager {
                 .withFaceLandmarks()
                 .withFaceExpressions();
 
-            // Process detection results
+            // Process detection results with scaling
             const results: FaceDetectionResult[] = [];
+            const scaleX = canvasWidth / videoWidth;
+            const scaleY = canvasHeight / videoHeight;
 
             for (const detection of detections) {
                 const box = detection.detection.box;
                 const landmarks = detection.landmarks;
                 const confidence = detection.detection.score;
 
-                // Calculate face orientation using landmarks
+                // Scale detection box to canvas coordinates
+                const scaledBox = {
+                    x: box.x * scaleX,
+                    y: box.y * scaleY,
+                    width: box.width * scaleX,
+                    height: box.height * scaleY
+                };
+
+                // Calculate face orientation
                 const faceOrientation = this.calculateFaceOrientation(landmarks);
                 const isFacingCamera = this.isFacingCamera(faceOrientation, confidence);
 
@@ -204,48 +214,28 @@ export class FaceDetectionManager {
                         roll: faceOrientation.roll
                     },
                     frontalConfidence: isFacingCamera ? confidence : confidence * 0.3,
-                    bbox: {
-                        x: box.x,
-                        y: box.y,
-                        width: box.width,
-                        height: box.height,
-                    }
+                    bbox: scaledBox
                 };
 
                 results.push(result);
 
-                // Draw detection box on canvas (over the video)
+                // Draw detection box on canvas
                 const boxColor = result.isFacingCamera ? '#00FF00' : '#FFD700';
                 canvasCtx.strokeStyle = boxColor;
-                canvasCtx.lineWidth = 3;
-                canvasCtx.strokeRect(box.x, box.y, box.width, box.height);
+                canvasCtx.lineWidth = 2;
+                canvasCtx.strokeRect(scaledBox.x, scaledBox.y, scaledBox.width, scaledBox.height);
 
-                // Draw confidence and orientation info
+                // Draw confidence info
                 canvasCtx.fillStyle = boxColor;
-                canvasCtx.font = 'bold 14px Arial';
+                canvasCtx.font = 'bold 12px Arial';
                 canvasCtx.shadowColor = 'black';
                 canvasCtx.shadowBlur = 2;
                 canvasCtx.fillText(
                     `${result.isFacingCamera ? '✓ Frontal' : '⚠ Turn to camera'} ${(confidence * 100).toFixed(0)}%`,
-                    box.x,
-                    box.y - 8
+                    scaledBox.x,
+                    Math.max(scaledBox.y - 5, 15)
                 );
-
-                // Draw angle info
-                canvasCtx.font = '12px Arial';
-                canvasCtx.fillText(
-                    `Yaw: ${faceOrientation.yaw.toFixed(1)}° Pitch: ${faceOrientation.pitch.toFixed(1)}°`,
-                    box.x,
-                    box.y + box.height + 15
-                );
-
-                // Reset shadow
                 canvasCtx.shadowBlur = 0;
-            }
-
-            // Log detection info every 30 frames (about once per second at 30fps)
-            if (Math.random() < 0.033) {
-                console.log(`[FaceDetection] Video: ${videoWidth}x${videoHeight}, Faces: ${results.length}, Canvas: ${this.canvasElement.width}x${this.canvasElement.height}`);
             }
 
             // Call results callback
@@ -253,7 +243,6 @@ export class FaceDetectionManager {
 
         } catch (error) {
             console.error('[FaceDetection] Detection error:', error);
-            // Continue even if detection fails, so video keeps showing
         }
 
         // Continue detection loop
@@ -470,27 +459,23 @@ export const createTargetRegion = (
     canvasWidth: number,
     canvasHeight: number
 ) => {
-    // Get device type based on screen width
-    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    // Always use consistent dimensions for the target region
+    // regardless of actual canvas size in DOM
+    const baseWidth = 640;
+    const baseHeight = 480;
 
-    let regionMultiplier = 0.4; // Default for desktop
+    // Calculate region size based on the smaller dimension to ensure it fits
+    const minDimension = Math.min(baseWidth, baseHeight);
 
-    if (screenWidth < 576) { // Mobile
-        regionMultiplier = 0.7;
-    } else if (screenWidth < 768) { // Small tablet
-        regionMultiplier = 0.6;
-    } else if (screenWidth < 992) { // Tablet
-        regionMultiplier = 0.5;
-    } else if (screenWidth < 1200) { // Small desktop
-        regionMultiplier = 0.45;
-    }
+    // Use a percentage of the smaller dimension
+    const regionSize = minDimension * 0.6; // 60% of smaller dimension
 
-    const regionWidth = canvasWidth * regionMultiplier;
-    const regionHeight = canvasHeight * (regionMultiplier + 0.1); // Slightly taller
+    const regionWidth = regionSize;
+    const regionHeight = regionSize * 1.2; // Make it slightly taller for faces
 
     return {
-        x: (canvasWidth - regionWidth) / 2,
-        y: (canvasHeight - regionHeight) / 2,
+        x: (baseWidth - regionWidth) / 2,
+        y: (baseHeight - regionHeight) / 2,
         width: regionWidth,
         height: regionHeight
     };
